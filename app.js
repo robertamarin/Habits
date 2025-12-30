@@ -3,7 +3,8 @@ const STORAGE_KEYS = {
   completions: 'habitCompletions',
   todos: 'habitTodos',
   theme: 'habitTheme',
-  accent: 'habitAccent'
+  accent: 'habitAccent',
+  breaks: 'habitBreaks'
 };
 
 const quotes = [
@@ -18,11 +19,13 @@ const quotes = [
 const audioContext = window.AudioContext ? new AudioContext() : null;
 let historyDirty = true;
 let analyticsDirty = true;
+let breakTimerInterval;
 
 let today = getToday();
 let goals = loadGoals();
 let completions = loadCompletions();
 let todos = loadTodos();
+let breakHabits = loadBreakHabits();
 
 syncTodoCounts();
 
@@ -105,6 +108,20 @@ function loadTodos() {
   }
 }
 
+function loadBreakHabits() {
+  const stored = localStorage.getItem(STORAGE_KEYS.breaks);
+  if (!stored) return [];
+  try {
+    return JSON.parse(stored).map(item => ({
+      id: item.id || generateId(),
+      name: item.name || 'Something to quit',
+      startDate: item.startDate || getToday()
+    }));
+  } catch {
+    return [];
+  }
+}
+
 function saveGoals() {
   localStorage.setItem(STORAGE_KEYS.goals, JSON.stringify(goals));
 }
@@ -115,6 +132,10 @@ function saveCompletions() {
 
 function saveTodos() {
   localStorage.setItem(STORAGE_KEYS.todos, JSON.stringify(todos));
+}
+
+function saveBreakHabits() {
+  localStorage.setItem(STORAGE_KEYS.breaks, JSON.stringify(breakHabits));
 }
 
 function ensureDailyRecord(date) {
@@ -144,6 +165,9 @@ function initNavigation() {
       }
       if (target === 'home') {
         renderHome();
+      } else if (breakTimerInterval) {
+        clearInterval(breakTimerInterval);
+        breakTimerInterval = null;
       }
     });
   });
@@ -247,6 +271,7 @@ function renderHome() {
   renderTodos();
   renderQuoteAndXp(metrics);
   renderSnapshot(metrics);
+  renderBreakTimers();
 }
 
 function calculateMetrics() {
@@ -345,6 +370,7 @@ function renderGoalsPage() {
   });
 
   enableGoalDrag(goalList);
+  renderBreakManageList();
 }
 
 function describeFrequency(goal) {
@@ -385,6 +411,41 @@ function enableGoalDrag(list) {
       persistGoalOrder(list);
     });
   });
+}
+
+function renderBreakManageList() {
+  const list = document.getElementById('break-manage-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (breakHabits.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'subtle';
+    empty.textContent = 'No quit trackers yet.';
+    list.appendChild(empty);
+    return;
+  }
+
+  breakHabits
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'goal-row';
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = item.name;
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = `since ${item.startDate}`;
+      const remove = document.createElement('button');
+      remove.className = 'goal-action';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => removeBreakHabit(item.id));
+      li.appendChild(name);
+      li.appendChild(meta);
+      li.appendChild(remove);
+      list.appendChild(li);
+    });
 }
 
 function persistGoalOrder(list) {
@@ -445,6 +506,18 @@ function addGoal(name) {
   renderHome();
   renderGoalsPage();
   markDataChanged();
+}
+
+function addBreakHabit(name, startDate) {
+  const entry = {
+    id: generateId(),
+    name,
+    startDate: startDate || getToday()
+  };
+  breakHabits.push(entry);
+  saveBreakHabits();
+  renderBreakManageList();
+  renderBreakTimers();
 }
 
 function syncTodoCounts() {
@@ -563,6 +636,13 @@ function clearCompletedTodos() {
   syncTodoCounts();
   renderHome();
   renderTodos();
+}
+
+function removeBreakHabit(id) {
+  breakHabits = breakHabits.filter(item => item.id !== id);
+  saveBreakHabits();
+  renderBreakManageList();
+  renderBreakTimers();
 }
 
 function renderHistory({ force = false } = {}) {
@@ -909,6 +989,59 @@ function renderSnapshot(metrics = calculateMetrics()) {
   }
 }
 
+function renderBreakTimers() {
+  const list = document.getElementById('break-list');
+  const empty = document.getElementById('break-empty');
+  if (!list) return;
+  list.innerHTML = '';
+  if (breakTimerInterval) clearInterval(breakTimerInterval);
+
+  if (breakHabits.length === 0) {
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  breakHabits
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'break-row';
+      const info = document.createElement('div');
+      info.innerHTML = `<div class="break-name">${item.name}</div><div class="break-meta">since ${item.startDate}</div>`;
+      const timer = document.createElement('div');
+      timer.className = 'break-timer';
+      timer.dataset.start = item.startDate;
+      row.appendChild(info);
+      row.appendChild(timer);
+      list.appendChild(row);
+    });
+
+  updateBreakTimers();
+  breakTimerInterval = setInterval(updateBreakTimers, 1000);
+}
+
+function updateBreakTimers() {
+  const timers = document.querySelectorAll('.break-timer');
+  const now = new Date();
+  timers.forEach(timer => {
+    const startStr = timer.dataset.start;
+    const start = new Date(startStr + 'T00:00:00');
+    if (Number.isNaN(start.getTime())) {
+      timer.textContent = 'Invalid date';
+      return;
+    }
+    const diff = Math.max(0, now - start);
+    const totalSeconds = Math.floor(diff / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    timer.textContent = `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  });
+}
+
 function markDataChanged() {
   const historySection = document.getElementById('history');
   const historyVisible = historySection && !historySection.classList.contains('hidden');
@@ -991,6 +1124,23 @@ if (todoForm) {
     if (due) due.value = '';
     renderTodos();
     renderSnapshot();
+  });
+}
+
+const breakForm = document.getElementById('break-form');
+if (breakForm) {
+  const breakDate = document.getElementById('break-start');
+  if (breakDate) breakDate.value = today;
+  breakForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = document.getElementById('break-input');
+    const start = document.getElementById('break-start');
+    const name = input.value.trim();
+    const startDate = start?.value || today;
+    if (!name || !startDate) return;
+    addBreakHabit(name, startDate);
+    input.value = '';
+    if (start) start.value = today;
   });
 }
 

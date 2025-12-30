@@ -97,6 +97,14 @@
             </div>
             <ul class="stat-list" id="stat-list"></ul>
           </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Quit trackers</h2>
+              <div class="subtle">Time since you stopped</div>
+            </div>
+            <div class="break-list" id="break-list"></div>
+            <p class="subtle" id="break-empty">Add quit habits in Goals.</p>
+          </section>
           <section class="panel theme-panel">
             <div class="panel-header">
               <h2>Appearance</h2>
@@ -145,6 +153,21 @@
           </div>
           <label class="inline-label">Times per period
             <input type="number" id="goal-times" min="1" value="3">
+          </label>
+          <button type="submit">Add</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Habits to quit</h2>
+          <div class="subtle">Track how long you’ve stayed clear.</div>
+        </div>
+        <ul id="break-manage-list" class="goal-list"></ul>
+        <form id="break-form" class="inline-form goal-form">
+          <input type="text" id="break-input" placeholder="What are you quitting?" required>
+          <label class="inline-label">Quit date
+            <input type="date" id="break-start" required>
           </label>
           <button type="submit">Add</button>
         </form>
