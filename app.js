@@ -16,6 +16,8 @@ const quotes = [
 ];
 
 const audioContext = window.AudioContext ? new AudioContext() : null;
+let historyDirty = true;
+let analyticsDirty = true;
 
 let today = getToday();
 let goals = loadGoals();
@@ -30,6 +32,7 @@ initThemeControls();
 renderHome();
 renderGoalsPage();
 renderHistory();
+renderAnalytics();
 setInterval(refreshToday, 60000);
 
 function getToday() {
@@ -46,6 +49,7 @@ function refreshToday() {
     today = current;
     renderHome();
     renderHistory();
+    renderAnalytics();
   }
 }
 
@@ -134,6 +138,13 @@ function initNavigation() {
         page.classList.toggle('hidden', page.id !== target);
       });
       links.forEach(btn => btn.classList.toggle('active', btn === link));
+      if (target === 'history') {
+        renderHistory({ force: true });
+        renderAnalytics({ force: true });
+      }
+      if (target === 'home') {
+        renderHome();
+      }
     });
   });
   const initialLink = document.querySelector('.nav-link[data-target="home"]');
@@ -183,6 +194,7 @@ function renderHome() {
   const activeGoals = getGoalsForDate(today);
   const grid = document.getElementById('daily-goal-grid');
   grid.innerHTML = '';
+  const fragment = document.createDocumentFragment();
 
   const record = ensureDailyRecord(today);
   const completedCount = activeGoals.filter(goal => (record.goalStatuses[goal.id] || 0) >= (goal.target || 1)).length;
@@ -201,7 +213,7 @@ function renderHome() {
       const heading = document.createElement('div');
       heading.className = 'group-heading';
       heading.textContent = groupName;
-      grid.appendChild(heading);
+      fragment.appendChild(heading);
     }
     items.forEach(goal => {
       const square = document.createElement('div');
@@ -222,9 +234,10 @@ function renderHome() {
           markGoalComplete(goal.id);
         });
       }
-      grid.appendChild(square);
+      fragment.appendChild(square);
     });
   });
+  grid.appendChild(fragment);
 
   const metrics = calculateMetrics();
   document.getElementById('today-count').textContent = metrics.today;
@@ -274,7 +287,7 @@ function markGoalComplete(goalId) {
   completions[today] = record;
   saveCompletions();
   renderHome();
-  renderHistory();
+  markDataChanged();
   playChime();
   triggerVibration();
   if (isDayComplete(record)) {
@@ -378,6 +391,7 @@ function persistGoalOrder(list) {
   const ids = Array.from(list.children).map(li => li.dataset.id);
   goals = goals.map(goal => ({ ...goal, order: ids.indexOf(goal.id) }));
   saveGoals();
+  markDataChanged();
 }
 
 function renameGoal(goalId, newName) {
@@ -389,15 +403,15 @@ function renameGoal(goalId, newName) {
   });
   saveGoals();
   renderHome();
-  renderHistory();
   renderGoalsPage();
+  markDataChanged();
 }
 
 function archiveGoal(goalId) {
   goals = goals.map(goal => goal.id === goalId ? { ...goal, archived: true, archivedDate: today } : goal);
   saveGoals();
   renderHome();
-  renderHistory();
+  markDataChanged();
   renderGoalsPage();
 }
 
@@ -429,8 +443,8 @@ function addGoal(name) {
   saveCompletions();
   saveGoals();
   renderHome();
-  renderHistory();
   renderGoalsPage();
+  markDataChanged();
 }
 
 function syncTodoCounts() {
@@ -451,6 +465,7 @@ function syncTodoCounts() {
     }
   });
   saveCompletions();
+  markDataChanged();
 }
 
 function renderTodos() {
@@ -526,7 +541,6 @@ function toggleTodo(id, done) {
   syncTodoCounts();
   saveTodos();
   renderHome();
-  renderHistory();
   renderTodos();
   renderSnapshot();
   if (done) {
@@ -539,7 +553,6 @@ function removeTodo(id) {
   saveTodos();
   syncTodoCounts();
   renderHome();
-  renderHistory();
   renderTodos();
   renderSnapshot();
 }
@@ -549,11 +562,17 @@ function clearCompletedTodos() {
   saveTodos();
   syncTodoCounts();
   renderHome();
-  renderHistory();
   renderTodos();
 }
 
-function renderHistory() {
+function renderHistory({ force = false } = {}) {
+  const historySection = document.getElementById('history');
+  if (!force && historySection?.classList.contains('hidden')) {
+    historyDirty = true;
+    return;
+  }
+  if (force === false && !historyDirty) return;
+  historyDirty = false;
   const container = document.getElementById('history-matrix');
   container.innerHTML = '';
   const allGoals = [...goals].sort((a, b) => a.order - b.order);
@@ -585,6 +604,7 @@ function renderHistory() {
   });
   table.appendChild(headerRow);
 
+  const bodyFragment = document.createDocumentFragment();
   allGoals.forEach(goal => {
     const row = document.createElement('tr');
     const sticky = document.createElement('th');
@@ -608,8 +628,9 @@ function renderHistory() {
       td.title = getGoalNameForDate(goal, date);
       row.appendChild(td);
     });
-    table.appendChild(row);
+    bodyFragment.appendChild(row);
   });
+  table.appendChild(bodyFragment);
 
   container.appendChild(table);
 
@@ -651,7 +672,14 @@ function getGoalNameForDate(goal, date) {
   return name;
 }
 
-function renderAnalytics() {
+function renderAnalytics({ force = false } = {}) {
+  const historySection = document.getElementById('history');
+  if (!force && historySection?.classList.contains('hidden') && !analyticsDirty) return;
+  if (!force && historySection?.classList.contains('hidden')) {
+    analyticsDirty = true;
+    return;
+  }
+  analyticsDirty = false;
   const range = Number(document.getElementById('analytics-range')?.value || 7);
   const end = new Date(today + 'T00:00:00');
   const start = new Date(today + 'T00:00:00');
@@ -881,6 +909,17 @@ function renderSnapshot(metrics = calculateMetrics()) {
   }
 }
 
+function markDataChanged() {
+  const historySection = document.getElementById('history');
+  const historyVisible = historySection && !historySection.classList.contains('hidden');
+  historyDirty = true;
+  analyticsDirty = true;
+  if (historyVisible) {
+    renderHistory({ force: true });
+    renderAnalytics({ force: true });
+  }
+}
+
 function playChime() {
   if (!audioContext) return;
   const osc = audioContext.createOscillator();
@@ -964,12 +1003,10 @@ if (clearCompletedBtn) {
 
 const analyticsRange = document.getElementById('analytics-range');
 if (analyticsRange) {
-  analyticsRange.addEventListener('change', renderAnalytics);
+  analyticsRange.addEventListener('change', () => renderAnalytics({ force: true }));
 }
 
 const exportCsvBtn = document.getElementById('export-csv');
 if (exportCsvBtn) {
   exportCsvBtn.addEventListener('click', downloadCsv);
 }
-
-renderAnalytics();
