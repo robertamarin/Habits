@@ -3,208 +3,247 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Habit Execution</title>
+  <title>Habits • Execution Ledger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="app-header">
-    <div class="logo">Execution Ledger</div>
-    <nav class="nav">
-      <button class="nav-link" data-target="home">Today</button>
-      <button class="nav-link" data-target="goals">Goals</button>
-      <button class="nav-link" data-target="history">History</button>
+  <header class="topbar shell">
+    <div class="brand">
+      <div class="dot"></div>
+      <div>
+        <div class="eyebrow">Execution ledger</div>
+        <strong>Habit Engine</strong>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Primary">
+      <button class="tab active" data-target="today">Today</button>
+      <button class="tab" data-target="goals">Goals</button>
+      <button class="tab" data-target="history">History</button>
     </nav>
-    <div class="theme-controls" aria-label="Appearance controls">
-      <select id="theme-select" aria-label="Theme">
-        <option value="dark">Dark</option>
-        <option value="light">Light</option>
-      </select>
-      <input type="color" id="accent-picker" aria-label="Accent colour" value="#22d3ee">
+    <div class="controls">
+      <label class="chip">
+        Theme
+        <select id="theme-select" aria-label="Theme picker">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+      </label>
+      <label class="chip">
+        Accent
+        <input type="color" id="accent-picker" aria-label="Accent colour" value="#7c3aed">
+      </label>
     </div>
   </header>
 
-  <main>
-    <section id="home" class="page">
-      <div class="page-header">
+  <main class="shell">
+    <section id="today" class="page">
+      <div class="page-head">
         <div>
-          <h1>Daily Execution</h1>
-          <p class="subtle" id="today-label"></p>
+          <p class="eyebrow" id="today-label"></p>
+          <h1>Daily execution</h1>
+          <p class="muted">Ship small actions, keep the streak alive.</p>
         </div>
-        <div class="metrics">
-          <div class="metric">
-            <div class="metric-value" id="today-count">0</div>
-            <div class="metric-label">Actions completed today</div>
-          </div>
-          <div class="metric">
-            <div class="metric-value" id="year-count">0</div>
-            <div class="metric-label">Actions completed this year</div>
-          </div>
-          <div class="metric">
-            <div class="metric-value" id="streak-count">0</div>
-            <div class="metric-label">Current streak</div>
-          </div>
+        <div class="stack">
+          <div class="pill" id="quote">Momentum starts with one tiny win.</div>
+          <div class="pill" id="xp-level"></div>
         </div>
       </div>
 
-      <div class="page-grid">
-        <div class="main-column">
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Daily progress</h2>
-              <div class="goal-summary" id="goal-summary"></div>
-            </div>
-            <div class="progress-shell" aria-label="Progress toward today">
-              <div id="progress-bar" class="progress-bar"></div>
-              <div id="progress-label" class="progress-label"></div>
-            </div>
-            <div class="feedback-row">
-              <div class="feedback-chip" id="quote"></div>
-              <div class="feedback-chip" id="xp-level"></div>
-            </div>
-          </section>
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Progress</p>
+            <strong id="progress-label">0% complete</strong>
+          </div>
+          <div class="stat-grid" id="stat-grid"></div>
+        </div>
+        <div class="progress">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+      </section>
 
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Daily goals</h2>
-              <div class="subtle">Shows what is scheduled for the selected day</div>
+      <div class="grid">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Today\'s plan</p>
+              <h2 id="goal-summary">No goals yet</h2>
             </div>
-            <div id="daily-goal-grid" class="grid"></div>
-            <p class="subtle" id="no-goals-message">No goals available. Add goals in the Goals page.</p>
-          </section>
+            <button class="ghost" id="nudge-add-goal" type="button">Add goal</button>
+          </div>
+          <div class="list" id="goal-list-today"></div>
+          <p class="muted" id="empty-goals">Nothing scheduled. Add a goal to start tracking.</p>
+        </section>
 
-          <section class="panel">
-            <div class="panel-header">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Quick wins</p>
               <h2>To-dos</h2>
-              <div class="subtle">Fast, optional tasks that count toward momentum</div>
             </div>
-            <form id="todo-form" class="inline-form todo-form">
-              <input type="text" id="todo-input" placeholder="Quick add a task" required>
-              <input type="date" id="todo-due" aria-label="Due date">
-              <button type="submit">Add task</button>
-            </form>
-            <div class="todo-list stacked" id="todo-list"></div>
-            <div class="todo-actions">
-              <div id="todo-today-count" class="subtle"></div>
-              <button id="clear-completed">Clear completed tasks</button>
-            </div>
-          </section>
-        </div>
-        <div class="side-column">
-          <section class="panel">
-            <div class="panel-header">
+          </div>
+          <form id="todo-form" class="row">
+            <input type="text" id="todo-input" placeholder="Add a fast task" required>
+            <input type="date" id="todo-due" aria-label="Due date">
+            <button type="submit">Add</button>
+          </form>
+          <div class="list" id="todo-list"></div>
+          <div class="row end">
+            <div class="muted" id="todo-today-count"></div>
+            <button class="ghost" id="clear-completed" type="button">Clear done</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="grid">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Momentum</p>
               <h2>Snapshot</h2>
-              <div class="subtle">Live progress at a glance</div>
             </div>
-            <ul class="stat-list" id="stat-list"></ul>
-          </section>
-          <section class="panel">
-            <div class="panel-header">
-              <h2>Quit trackers</h2>
-              <div class="subtle">Time since you stopped</div>
+          </div>
+          <ul class="compact" id="stat-list"></ul>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Quit trackers</p>
+              <h2>Time since last</h2>
             </div>
-            <div class="break-list" id="break-list"></div>
-            <p class="subtle" id="break-empty">Add quit habits in Goals.</p>
-          </section>
-          <section class="panel theme-panel">
-            <div class="panel-header">
-              <h2>Appearance</h2>
-              <div class="subtle">Make it yours</div>
-            </div>
-            <div class="swatch-row">
-              <div class="swatch" id="accent-preview"></div>
-              <div class="theme-note" id="theme-note"></div>
-            </div>
-          </section>
-        </div>
+            <button class="ghost" id="open-quit" type="button">Manage</button>
+          </div>
+          <div class="list" id="break-list"></div>
+          <p class="muted" id="break-empty">Add quit habits in Goals.</p>
+        </section>
       </div>
     </section>
 
     <section id="goals" class="page hidden">
-      <div class="page-header">
-        <h1>Goals configuration</h1>
-        <p class="subtle">Defines what a complete day requires. Changes apply only to future days.</p>
-      </div>
-      <section class="panel">
-        <div class="panel-header">
-          <h2>Current goals</h2>
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Configuration</p>
+          <h1>Goals</h1>
+          <p class="muted">Define what a complete day means. Changes apply to future days.</p>
         </div>
-        <ul id="goal-list" class="goal-list" aria-live="polite"></ul>
-        <form id="goal-form" class="inline-form goal-form">
-          <input type="text" id="goal-input" placeholder="Add a goal" required>
-          <input type="text" id="goal-group" placeholder="Group (e.g. Morning routine)" aria-label="Group">
-          <label class="inline-label">Target per day
-            <input type="number" id="goal-target" min="1" value="1">
-          </label>
-          <select id="goal-frequency" aria-label="Frequency">
-            <option value="daily">Every day</option>
-            <option value="weekdays">Weekdays</option>
-            <option value="custom">Specific days</option>
-            <option value="week">Times per week</option>
-            <option value="month">Times per month</option>
-          </select>
-          <div class="days-picker" id="goal-days">
-            <label><input type="checkbox" value="0">Sun</label>
-            <label><input type="checkbox" value="1">Mon</label>
-            <label><input type="checkbox" value="2">Tue</label>
-            <label><input type="checkbox" value="3">Wed</label>
-            <label><input type="checkbox" value="4">Thu</label>
-            <label><input type="checkbox" value="5">Fri</label>
-            <label><input type="checkbox" value="6">Sat</label>
+      </div>
+
+      <div class="grid">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">New goal</p>
+              <h2>Create</h2>
+            </div>
           </div>
-          <label class="inline-label">Times per period
-            <input type="number" id="goal-times" min="1" value="3">
-          </label>
-          <button type="submit">Add</button>
-        </form>
-      </section>
+          <form id="goal-form" class="stack">
+            <input type="text" id="goal-input" placeholder="Write, run, stretch..." required>
+            <div class="row">
+              <input type="text" id="goal-group" placeholder="Group (Morning, Health)">
+              <label class="stacked">Target
+                <input type="number" id="goal-target" min="1" value="1">
+              </label>
+            </div>
+            <div class="row">
+              <label class="stacked">Frequency
+                <select id="goal-frequency">
+                  <option value="daily">Every day</option>
+                  <option value="weekdays">Weekdays</option>
+                  <option value="custom">Specific days</option>
+                  <option value="week">Times per week</option>
+                  <option value="month">Times per month</option>
+                </select>
+              </label>
+              <label class="stacked">Times per period
+                <input type="number" id="goal-times" min="1" value="3">
+              </label>
+            </div>
+            <div class="days" id="goal-days">
+              <label><input type="checkbox" value="0">Sun</label>
+              <label><input type="checkbox" value="1">Mon</label>
+              <label><input type="checkbox" value="2">Tue</label>
+              <label><input type="checkbox" value="3">Wed</label>
+              <label><input type="checkbox" value="4">Thu</label>
+              <label><input type="checkbox" value="5">Fri</label>
+              <label><input type="checkbox" value="6">Sat</label>
+            </div>
+            <button type="submit">Add goal</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Active goals</p>
+              <h2>Track list</h2>
+            </div>
+          </div>
+          <div class="list" id="goal-list"></div>
+          <p class="muted" id="goal-empty">No goals yet.</p>
+        </section>
+      </div>
 
       <section class="panel">
-        <div class="panel-header">
-          <h2>Habits to quit</h2>
-          <div class="subtle">Track how long you’ve stayed clear.</div>
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Habits to quit</p>
+            <h2>Clean streaks</h2>
+          </div>
         </div>
-        <ul id="break-manage-list" class="goal-list"></ul>
-        <form id="break-form" class="inline-form goal-form">
-          <input type="text" id="break-input" placeholder="What are you quitting?" required>
-          <label class="inline-label">Quit date
+        <form id="break-form" class="row">
+          <input type="text" id="break-input" placeholder="Stop sugar" required>
+          <label class="stacked">Quit date
             <input type="date" id="break-start" required>
           </label>
-          <button type="submit">Add</button>
+          <button type="submit">Add tracker</button>
         </form>
+        <div class="list" id="break-manage"></div>
+        <p class="muted" id="break-manage-empty">No quit trackers yet.</p>
       </section>
     </section>
 
     <section id="history" class="page hidden">
-      <div class="page-header">
-        <h1>History</h1>
-        <p class="subtle">Immutable record of daily outcomes. Filled squares indicate completion.</p>
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Ledger</p>
+          <h1>History</h1>
+          <p class="muted">A clean record of what shipped each day.</p>
+        </div>
+        <div class="row">
+          <label class="stacked">Range
+            <select id="analytics-range">
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+          </label>
+          <button id="export-csv" type="button">Export CSV</button>
+        </div>
       </div>
+
       <section class="panel">
-        <div id="history-matrix" class="history-matrix"></div>
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Completion map</p>
+            <h2>This year</h2>
+          </div>
+        </div>
+        <div id="history-matrix" class="history"></div>
       </section>
-      <section class="panel" id="analytics">
-        <div class="panel-header">
-          <h2>Analytics</h2>
-          <select id="analytics-range" aria-label="Analytics range">
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="365">Year to date</option>
-          </select>
-        </div>
-        <div class="analytics-grid">
+
+      <section class="panel">
+        <div class="panel-head">
           <div>
-            <h3>Streaks & rates</h3>
-            <ul id="analytics-summary" class="analytics-list"></ul>
-          </div>
-          <div>
-            <h3>Completion trends</h3>
-            <canvas id="bar-chart" width="480" height="200" aria-label="Completion chart"></canvas>
-          </div>
-          <div>
-            <h3>Export</h3>
-            <button id="export-csv">Download CSV</button>
+            <p class="eyebrow">Analytics</p>
+            <h2>Trends</h2>
           </div>
         </div>
+        <div class="grid stats" id="analytics-summary"></div>
+        <canvas id="bar-chart" width="900" height="240" aria-label="Completion chart"></canvas>
       </section>
     </section>
   </main>
