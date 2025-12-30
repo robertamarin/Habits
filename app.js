@@ -3,7 +3,8 @@ const STORAGE_KEYS = {
   completions: 'habitCompletions',
   todos: 'habitTodos',
   theme: 'habitTheme',
-  accent: 'habitAccent'
+  accent: 'habitAccent',
+  breaks: 'habitBreaks'
 };
 
 const quotes = [
@@ -16,11 +17,15 @@ const quotes = [
 ];
 
 const audioContext = window.AudioContext ? new AudioContext() : null;
+let historyDirty = true;
+let analyticsDirty = true;
+let breakTimerInterval;
 
 let today = getToday();
 let goals = loadGoals();
 let completions = loadCompletions();
 let todos = loadTodos();
+let breakHabits = loadBreakHabits();
 
 syncTodoCounts();
 
@@ -30,6 +35,7 @@ initThemeControls();
 renderHome();
 renderGoalsPage();
 renderHistory();
+renderAnalytics();
 setInterval(refreshToday, 60000);
 
 function getToday() {
@@ -46,6 +52,7 @@ function refreshToday() {
     today = current;
     renderHome();
     renderHistory();
+    renderAnalytics();
   }
 }
 
@@ -101,6 +108,20 @@ function loadTodos() {
   }
 }
 
+function loadBreakHabits() {
+  const stored = localStorage.getItem(STORAGE_KEYS.breaks);
+  if (!stored) return [];
+  try {
+    return JSON.parse(stored).map(item => ({
+      id: item.id || generateId(),
+      name: item.name || 'Something to quit',
+      startDate: item.startDate || getToday()
+    }));
+  } catch {
+    return [];
+  }
+}
+
 function saveGoals() {
   localStorage.setItem(STORAGE_KEYS.goals, JSON.stringify(goals));
 }
@@ -111,6 +132,10 @@ function saveCompletions() {
 
 function saveTodos() {
   localStorage.setItem(STORAGE_KEYS.todos, JSON.stringify(todos));
+}
+
+function saveBreakHabits() {
+  localStorage.setItem(STORAGE_KEYS.breaks, JSON.stringify(breakHabits));
 }
 
 function ensureDailyRecord(date) {
@@ -134,6 +159,16 @@ function initNavigation() {
         page.classList.toggle('hidden', page.id !== target);
       });
       links.forEach(btn => btn.classList.toggle('active', btn === link));
+      if (target === 'history') {
+        renderHistory({ force: true });
+        renderAnalytics({ force: true });
+      }
+      if (target === 'home') {
+        renderHome();
+      } else if (breakTimerInterval) {
+        clearInterval(breakTimerInterval);
+        breakTimerInterval = null;
+      }
     });
   });
   const initialLink = document.querySelector('.nav-link[data-target="home"]');
@@ -183,6 +218,7 @@ function renderHome() {
   const activeGoals = getGoalsForDate(today);
   const grid = document.getElementById('daily-goal-grid');
   grid.innerHTML = '';
+  const fragment = document.createDocumentFragment();
 
   const record = ensureDailyRecord(today);
   const completedCount = activeGoals.filter(goal => (record.goalStatuses[goal.id] || 0) >= (goal.target || 1)).length;
@@ -201,7 +237,7 @@ function renderHome() {
       const heading = document.createElement('div');
       heading.className = 'group-heading';
       heading.textContent = groupName;
-      grid.appendChild(heading);
+      fragment.appendChild(heading);
     }
     items.forEach(goal => {
       const square = document.createElement('div');
@@ -222,9 +258,10 @@ function renderHome() {
           markGoalComplete(goal.id);
         });
       }
-      grid.appendChild(square);
+      fragment.appendChild(square);
     });
   });
+  grid.appendChild(fragment);
 
   const metrics = calculateMetrics();
   document.getElementById('today-count').textContent = metrics.today;
@@ -234,6 +271,7 @@ function renderHome() {
   renderTodos();
   renderQuoteAndXp(metrics);
   renderSnapshot(metrics);
+  renderBreakTimers();
 }
 
 function calculateMetrics() {
@@ -274,7 +312,7 @@ function markGoalComplete(goalId) {
   completions[today] = record;
   saveCompletions();
   renderHome();
-  renderHistory();
+  markDataChanged();
   playChime();
   triggerVibration();
   if (isDayComplete(record)) {
@@ -332,6 +370,7 @@ function renderGoalsPage() {
   });
 
   enableGoalDrag(goalList);
+  renderBreakManageList();
 }
 
 function describeFrequency(goal) {
@@ -374,10 +413,46 @@ function enableGoalDrag(list) {
   });
 }
 
+function renderBreakManageList() {
+  const list = document.getElementById('break-manage-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (breakHabits.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'subtle';
+    empty.textContent = 'No quit trackers yet.';
+    list.appendChild(empty);
+    return;
+  }
+
+  breakHabits
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'goal-row';
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = item.name;
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = `since ${item.startDate}`;
+      const remove = document.createElement('button');
+      remove.className = 'goal-action';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => removeBreakHabit(item.id));
+      li.appendChild(name);
+      li.appendChild(meta);
+      li.appendChild(remove);
+      list.appendChild(li);
+    });
+}
+
 function persistGoalOrder(list) {
   const ids = Array.from(list.children).map(li => li.dataset.id);
   goals = goals.map(goal => ({ ...goal, order: ids.indexOf(goal.id) }));
   saveGoals();
+  markDataChanged();
 }
 
 function renameGoal(goalId, newName) {
@@ -389,15 +464,15 @@ function renameGoal(goalId, newName) {
   });
   saveGoals();
   renderHome();
-  renderHistory();
   renderGoalsPage();
+  markDataChanged();
 }
 
 function archiveGoal(goalId) {
   goals = goals.map(goal => goal.id === goalId ? { ...goal, archived: true, archivedDate: today } : goal);
   saveGoals();
   renderHome();
-  renderHistory();
+  markDataChanged();
   renderGoalsPage();
 }
 
@@ -429,8 +504,20 @@ function addGoal(name) {
   saveCompletions();
   saveGoals();
   renderHome();
-  renderHistory();
   renderGoalsPage();
+  markDataChanged();
+}
+
+function addBreakHabit(name, startDate) {
+  const entry = {
+    id: generateId(),
+    name,
+    startDate: startDate || getToday()
+  };
+  breakHabits.push(entry);
+  saveBreakHabits();
+  renderBreakManageList();
+  renderBreakTimers();
 }
 
 function syncTodoCounts() {
@@ -451,6 +538,7 @@ function syncTodoCounts() {
     }
   });
   saveCompletions();
+  markDataChanged();
 }
 
 function renderTodos() {
@@ -526,7 +614,6 @@ function toggleTodo(id, done) {
   syncTodoCounts();
   saveTodos();
   renderHome();
-  renderHistory();
   renderTodos();
   renderSnapshot();
   if (done) {
@@ -539,7 +626,6 @@ function removeTodo(id) {
   saveTodos();
   syncTodoCounts();
   renderHome();
-  renderHistory();
   renderTodos();
   renderSnapshot();
 }
@@ -549,11 +635,24 @@ function clearCompletedTodos() {
   saveTodos();
   syncTodoCounts();
   renderHome();
-  renderHistory();
   renderTodos();
 }
 
-function renderHistory() {
+function removeBreakHabit(id) {
+  breakHabits = breakHabits.filter(item => item.id !== id);
+  saveBreakHabits();
+  renderBreakManageList();
+  renderBreakTimers();
+}
+
+function renderHistory({ force = false } = {}) {
+  const historySection = document.getElementById('history');
+  if (!force && historySection?.classList.contains('hidden')) {
+    historyDirty = true;
+    return;
+  }
+  if (force === false && !historyDirty) return;
+  historyDirty = false;
   const container = document.getElementById('history-matrix');
   container.innerHTML = '';
   const allGoals = [...goals].sort((a, b) => a.order - b.order);
@@ -585,6 +684,7 @@ function renderHistory() {
   });
   table.appendChild(headerRow);
 
+  const bodyFragment = document.createDocumentFragment();
   allGoals.forEach(goal => {
     const row = document.createElement('tr');
     const sticky = document.createElement('th');
@@ -608,8 +708,9 @@ function renderHistory() {
       td.title = getGoalNameForDate(goal, date);
       row.appendChild(td);
     });
-    table.appendChild(row);
+    bodyFragment.appendChild(row);
   });
+  table.appendChild(bodyFragment);
 
   container.appendChild(table);
 
@@ -651,7 +752,14 @@ function getGoalNameForDate(goal, date) {
   return name;
 }
 
-function renderAnalytics() {
+function renderAnalytics({ force = false } = {}) {
+  const historySection = document.getElementById('history');
+  if (!force && historySection?.classList.contains('hidden') && !analyticsDirty) return;
+  if (!force && historySection?.classList.contains('hidden')) {
+    analyticsDirty = true;
+    return;
+  }
+  analyticsDirty = false;
   const range = Number(document.getElementById('analytics-range')?.value || 7);
   const end = new Date(today + 'T00:00:00');
   const start = new Date(today + 'T00:00:00');
@@ -881,6 +989,70 @@ function renderSnapshot(metrics = calculateMetrics()) {
   }
 }
 
+function renderBreakTimers() {
+  const list = document.getElementById('break-list');
+  const empty = document.getElementById('break-empty');
+  if (!list) return;
+  list.innerHTML = '';
+  if (breakTimerInterval) clearInterval(breakTimerInterval);
+
+  if (breakHabits.length === 0) {
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  breakHabits
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'break-row';
+      const info = document.createElement('div');
+      info.innerHTML = `<div class="break-name">${item.name}</div><div class="break-meta">since ${item.startDate}</div>`;
+      const timer = document.createElement('div');
+      timer.className = 'break-timer';
+      timer.dataset.start = item.startDate;
+      row.appendChild(info);
+      row.appendChild(timer);
+      list.appendChild(row);
+    });
+
+  updateBreakTimers();
+  breakTimerInterval = setInterval(updateBreakTimers, 1000);
+}
+
+function updateBreakTimers() {
+  const timers = document.querySelectorAll('.break-timer');
+  const now = new Date();
+  timers.forEach(timer => {
+    const startStr = timer.dataset.start;
+    const start = new Date(startStr + 'T00:00:00');
+    if (Number.isNaN(start.getTime())) {
+      timer.textContent = 'Invalid date';
+      return;
+    }
+    const diff = Math.max(0, now - start);
+    const totalSeconds = Math.floor(diff / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    timer.textContent = `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  });
+}
+
+function markDataChanged() {
+  const historySection = document.getElementById('history');
+  const historyVisible = historySection && !historySection.classList.contains('hidden');
+  historyDirty = true;
+  analyticsDirty = true;
+  if (historyVisible) {
+    renderHistory({ force: true });
+    renderAnalytics({ force: true });
+  }
+}
+
 function playChime() {
   if (!audioContext) return;
   const osc = audioContext.createOscillator();
@@ -955,6 +1127,23 @@ if (todoForm) {
   });
 }
 
+const breakForm = document.getElementById('break-form');
+if (breakForm) {
+  const breakDate = document.getElementById('break-start');
+  if (breakDate) breakDate.value = today;
+  breakForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = document.getElementById('break-input');
+    const start = document.getElementById('break-start');
+    const name = input.value.trim();
+    const startDate = start?.value || today;
+    if (!name || !startDate) return;
+    addBreakHabit(name, startDate);
+    input.value = '';
+    if (start) start.value = today;
+  });
+}
+
 const clearCompletedBtn = document.getElementById('clear-completed');
 if (clearCompletedBtn) {
   clearCompletedBtn.addEventListener('click', () => {
@@ -964,12 +1153,10 @@ if (clearCompletedBtn) {
 
 const analyticsRange = document.getElementById('analytics-range');
 if (analyticsRange) {
-  analyticsRange.addEventListener('change', renderAnalytics);
+  analyticsRange.addEventListener('change', () => renderAnalytics({ force: true }));
 }
 
 const exportCsvBtn = document.getElementById('export-csv');
 if (exportCsvBtn) {
   exportCsvBtn.addEventListener('click', downloadCsv);
 }
-
-renderAnalytics();
