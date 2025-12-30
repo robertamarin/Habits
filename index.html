@@ -46,56 +46,69 @@
         </div>
       </div>
 
-      <section class="panel">
-        <div class="panel-header">
-          <h2>Daily progress</h2>
-          <div class="goal-summary" id="goal-summary"></div>
-        </div>
-        <div class="progress-shell" aria-label="Progress toward today">
-          <div id="progress-bar" class="progress-bar"></div>
-        </div>
-        <div class="feedback-row">
-          <div class="feedback-chip" id="quote"></div>
-          <div class="feedback-chip" id="xp-level"></div>
-        </div>
-      </section>
+      <div class="page-grid">
+        <div class="main-column">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Daily progress</h2>
+              <div class="goal-summary" id="goal-summary"></div>
+            </div>
+            <div class="progress-shell" aria-label="Progress toward today">
+              <div id="progress-bar" class="progress-bar"></div>
+              <div id="progress-label" class="progress-label"></div>
+            </div>
+            <div class="feedback-row">
+              <div class="feedback-chip" id="quote"></div>
+              <div class="feedback-chip" id="xp-level"></div>
+            </div>
+          </section>
 
-      <section class="panel">
-        <div class="panel-header">
-          <h2>Daily goals</h2>
-          <div class="subtle">Shows what is scheduled for the selected day</div>
-        </div>
-        <div id="daily-goal-grid" class="grid"></div>
-        <p class="subtle" id="no-goals-message">No goals available. Add goals in the Goals page.</p>
-      </section>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Daily goals</h2>
+              <div class="subtle">Shows what is scheduled for the selected day</div>
+            </div>
+            <div id="daily-goal-grid" class="grid"></div>
+            <p class="subtle" id="no-goals-message">No goals available. Add goals in the Goals page.</p>
+          </section>
 
-      <section class="panel">
-        <div class="panel-header">
-          <h2>To-dos</h2>
-          <div class="subtle">Optional, counts toward completion when done</div>
+          <section class="panel">
+            <div class="panel-header">
+              <h2>To-dos</h2>
+              <div class="subtle">Fast, optional tasks that count toward momentum</div>
+            </div>
+            <form id="todo-form" class="inline-form todo-form">
+              <input type="text" id="todo-input" placeholder="Quick add a task" required>
+              <input type="date" id="todo-due" aria-label="Due date">
+              <button type="submit">Add task</button>
+            </form>
+            <div class="todo-list stacked" id="todo-list"></div>
+            <div class="todo-actions">
+              <div id="todo-today-count" class="subtle"></div>
+              <button id="clear-completed">Clear completed tasks</button>
+            </div>
+          </section>
         </div>
-        <form id="todo-form" class="inline-form todo-form">
-          <input type="text" id="todo-input" placeholder="Add a task" required>
-          <input type="date" id="todo-due" aria-label="Due date">
-          <select id="todo-priority" aria-label="Priority">
-            <option value="medium">Priority: Medium</option>
-            <option value="high">Priority: High</option>
-            <option value="low">Priority: Low</option>
-          </select>
-          <input type="text" id="todo-category" placeholder="Category" aria-label="Category">
-          <select id="todo-recurring" aria-label="Recurring schedule">
-            <option value="none">One-time</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-          </select>
-          <button type="submit">Add</button>
-        </form>
-        <div class="todo-columns" id="todo-columns"></div>
-        <div class="todo-actions">
-          <div id="todo-today-count" class="subtle"></div>
-          <button id="clear-completed">Clear completed tasks</button>
+        <div class="side-column">
+          <section class="panel">
+            <div class="panel-header">
+              <h2>Snapshot</h2>
+              <div class="subtle">Live progress at a glance</div>
+            </div>
+            <ul class="stat-list" id="stat-list"></ul>
+          </section>
+          <section class="panel theme-panel">
+            <div class="panel-header">
+              <h2>Appearance</h2>
+              <div class="subtle">Make it yours</div>
+            </div>
+            <div class="swatch-row">
+              <div class="swatch" id="accent-preview"></div>
+              <div class="theme-note" id="theme-note"></div>
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
     </section>
 
     <section id="goals" class="page hidden">
