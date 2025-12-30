@@ -17,11 +17,12 @@ const quotes = [
 
 const audioContext = window.AudioContext ? new AudioContext() : null;
 
+let today = getToday();
 let goals = loadGoals();
 let completions = loadCompletions();
 let todos = loadTodos();
 
-let today = getToday();
+syncTodoCounts();
 
 applySavedTheme();
 initNavigation();
@@ -87,7 +88,14 @@ function loadTodos() {
   const stored = localStorage.getItem(STORAGE_KEYS.todos);
   if (!stored) return [];
   try {
-    return JSON.parse(stored);
+    const todayStr = getToday();
+    return JSON.parse(stored).map(todo => ({
+      id: todo.id || generateId(),
+      text: todo.text || 'Untitled task',
+      dueDate: todo.dueDate || '',
+      completed: !!todo.completed,
+      completedDate: todo.completedDate || (todo.completed ? (todo.completedDate || todayStr) : '')
+    }));
   } catch {
     return [];
   }
@@ -145,7 +153,7 @@ function initThemeControls() {
 }
 
 function applySavedTheme() {
-  const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) || 'dark';
+  const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) || 'light';
   const savedAccent = localStorage.getItem(STORAGE_KEYS.accent) || '#22d3ee';
   setTheme(savedTheme, false);
   setAccent(savedAccent, false);
@@ -158,12 +166,14 @@ function applySavedTheme() {
 function setTheme(theme, persist = true) {
   document.documentElement.setAttribute('data-theme', theme);
   if (persist) localStorage.setItem(STORAGE_KEYS.theme, theme);
+  renderSnapshot();
 }
 
 function setAccent(color, persist = true) {
   document.documentElement.style.setProperty('--accent', color);
   document.documentElement.style.setProperty('--filled', color);
   if (persist) localStorage.setItem(STORAGE_KEYS.accent, color);
+  renderSnapshot();
 }
 
 function renderHome() {
@@ -223,6 +233,7 @@ function renderHome() {
   renderProgressBar();
   renderTodos();
   renderQuoteAndXp(metrics);
+  renderSnapshot(metrics);
 }
 
 function calculateMetrics() {
@@ -412,126 +423,133 @@ function addGoal(name) {
     order: goals.length
   };
   goals.push(goal);
+  const record = ensureDailyRecord(today);
+  record.goalStatuses[id] = record.goalStatuses[id] || 0;
+  completions[today] = record;
+  saveCompletions();
   saveGoals();
   renderHome();
   renderHistory();
   renderGoalsPage();
 }
 
-function renderTodos() {
-  const columns = document.getElementById('todo-columns');
-  if (!columns) return;
-  columns.innerHTML = '';
-  const todayTodos = todos.filter(t => t.dueDate === today || (!t.dueDate && !t.completed));
-  const overdue = todos.filter(t => t.dueDate && t.dueDate < today && !t.completed);
-  const upcoming = todos.filter(t => !todayTodos.includes(t) && !overdue.includes(t));
-
-  const sections = [
-    { title: 'Due today', items: todayTodos },
-    { title: 'Overdue', items: overdue },
-    { title: 'Upcoming', items: upcoming }
-  ];
-
-  sections.forEach(section => {
-    const col = document.createElement('div');
-    col.className = 'todo-column';
-    const header = document.createElement('div');
-    header.className = 'todo-column-header';
-    header.innerHTML = `<h3>${section.title}</h3><span class="meta">${section.items.length}</span>`;
-    col.appendChild(header);
-    const list = document.createElement('ul');
-    list.className = 'todo-list';
-    section.items
-      .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
-      .forEach(todo => list.appendChild(renderTodoRow(todo)));
-    col.appendChild(list);
-    columns.appendChild(col);
-  });
-
-  const count = todayTodos.filter(t => !t.completed).length;
-  const countLabel = document.getElementById('todo-today-count');
-  if (countLabel) countLabel.textContent = `${count} tasks due today`;
-}
-
-function renderTodoRow(todo) {
-  const li = document.createElement('li');
-  li.className = 'todo-item' + (todo.completed ? ' completed' : '');
-  const label = document.createElement('div');
-  label.textContent = todo.text;
-  label.className = 'todo-title';
-
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-  const due = todo.dueDate ? `Due ${todo.dueDate}` : 'No due date';
-  meta.textContent = `${due} · ${todo.priority || 'medium'} · ${todo.category || 'General'}`;
-
-  const actions = document.createElement('div');
-  actions.className = 'todo-row-actions';
-
-  const snoozeBtn = document.createElement('button');
-  snoozeBtn.textContent = 'Snooze';
-  snoozeBtn.addEventListener('click', () => snoozeTodo(todo.id));
-
-  const postponeBtn = document.createElement('button');
-  postponeBtn.textContent = 'Postpone';
-  postponeBtn.addEventListener('click', () => postponeTodo(todo.id));
-
-  actions.appendChild(snoozeBtn);
-  actions.appendChild(postponeBtn);
-
-  if (todo.completed) {
-    const done = document.createElement('button');
-    done.textContent = 'Completed';
-    done.disabled = true;
-    actions.appendChild(done);
-  } else {
-    const completeBtn = document.createElement('button');
-    completeBtn.textContent = 'Mark complete';
-    completeBtn.addEventListener('click', () => completeTodo(todo.id));
-    actions.appendChild(completeBtn);
-  }
-
-  li.appendChild(label);
-  li.appendChild(meta);
-  li.appendChild(actions);
-  return li;
-}
-
-function priorityRank(value) {
-  return { high: 0, medium: 1, low: 2 }[value] ?? 1;
-}
-
-function completeTodo(id) {
-  let changed = false;
-  let recurringMeta;
-  todos = todos.map(todo => {
-    if (todo.id !== id || todo.completed) return todo;
-    changed = true;
-    recurringMeta = todo.recurring;
-    return { ...todo, completed: true, completedDate: today };
-  });
-  if (!changed) return;
-  const record = ensureDailyRecord(today);
-  record.todoCount = (record.todoCount || 0) + 1;
-  completions[today] = record;
-  if (recurringMeta && recurringMeta !== 'none') {
-    const original = todos.find(t => t.id === id);
-    if (original) {
-      const nextDate = recurringMeta === 'daily' ? shiftDate(original?.dueDate || today, 1) : shiftDate(original?.dueDate || today, 7);
-      const duplicate = { ...original, id: generateId(), completed: false, completedDate: '', dueDate: nextDate };
-      todos.push(duplicate);
+function syncTodoCounts() {
+  const countByDate = {};
+  todos.forEach(todo => {
+    if (todo.completed && todo.completedDate) {
+      countByDate[todo.completedDate] = (countByDate[todo.completedDate] || 0) + 1;
     }
-  }
-  saveTodos();
+  });
+  Object.entries(countByDate).forEach(([date, count]) => {
+    const record = ensureDailyRecord(date);
+    record.todoCount = count;
+    completions[date] = record;
+  });
+  Object.keys(completions).forEach(date => {
+    if (!countByDate[date]) {
+      completions[date].todoCount = 0;
+    }
+  });
   saveCompletions();
+}
+
+function renderTodos() {
+  const list = document.getElementById('todo-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const sorted = [...todos].sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+    if (a.dueDate) return -1;
+    if (b.dueDate) return 1;
+    return a.text.localeCompare(b.text);
+  });
+
+  if (sorted.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'subtle';
+    empty.textContent = 'No tasks yet. Add a quick win to keep momentum.';
+    list.appendChild(empty);
+  }
+
+  sorted.forEach(todo => {
+    const card = document.createElement('div');
+    card.className = 'todo-card' + (todo.completed ? ' completed' : '');
+
+    const label = document.createElement('label');
+    label.className = 'todo-label';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = !!todo.completed;
+    checkbox.addEventListener('change', () => toggleTodo(todo.id, checkbox.checked));
+
+    const textWrap = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'todo-title';
+    title.textContent = todo.text;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const due = todo.dueDate ? `Due ${todo.dueDate}` : 'Flexible';
+    meta.textContent = due + (todo.completedDate ? ` · done ${todo.completedDate}` : '');
+    textWrap.appendChild(title);
+    textWrap.appendChild(meta);
+
+    label.appendChild(checkbox);
+    label.appendChild(textWrap);
+
+    const remove = document.createElement('button');
+    remove.className = 'ghost';
+    remove.setAttribute('aria-label', 'Remove task');
+    remove.textContent = '✕';
+    remove.addEventListener('click', () => removeTodo(todo.id));
+
+    card.appendChild(label);
+    card.appendChild(remove);
+    list.appendChild(card);
+  });
+
+  const dueToday = todos.filter(t => !t.completed && (t.dueDate === today || !t.dueDate)).length;
+  const countLabel = document.getElementById('todo-today-count');
+  if (countLabel) countLabel.textContent = `${dueToday} tasks ready for today`;
+}
+
+function toggleTodo(id, done) {
+  const target = todos.find(todo => todo.id === id);
+  const completionDate = target?.dueDate || today;
+  todos = todos.map(todo => {
+    if (todo.id !== id) return todo;
+    return done
+      ? { ...todo, completed: true, completedDate: completionDate }
+      : { ...todo, completed: false, completedDate: '' };
+  });
+  syncTodoCounts();
+  saveTodos();
   renderHome();
   renderHistory();
-  playChime();
+  renderTodos();
+  renderSnapshot();
+  if (done) {
+    playChime();
+  }
+}
+
+function removeTodo(id) {
+  todos = todos.filter(todo => todo.id !== id);
+  saveTodos();
+  syncTodoCounts();
+  renderHome();
+  renderHistory();
+  renderTodos();
+  renderSnapshot();
 }
 
 function clearCompletedTodos() {
   todos = todos.filter(todo => !todo.completed);
   saveTodos();
+  syncTodoCounts();
+  renderHome();
+  renderHistory();
   renderTodos();
 }
 
@@ -631,24 +649,6 @@ function getGoalNameForDate(goal, date) {
     if (entry.from <= date) name = entry.name;
   });
   return name;
-}
-
-function snoozeTodo(id) {
-  todos = todos.map(todo => todo.id === id ? { ...todo, dueDate: shiftDate(todo.dueDate || today, 1) } : todo);
-  saveTodos();
-  renderTodos();
-}
-
-function postponeTodo(id) {
-  todos = todos.map(todo => todo.id === id ? { ...todo, dueDate: shiftDate(todo.dueDate || today, 3) } : todo);
-  saveTodos();
-  renderTodos();
-}
-
-function shiftDate(base, days) {
-  const date = new Date((base || today) + 'T00:00:00');
-  date.setDate(date.getDate() + days);
-  return formatDate(date);
 }
 
 function renderAnalytics() {
@@ -812,16 +812,27 @@ function isDayComplete(record) {
   return dueGoals.every(goal => (record.goalStatuses[goal.id] || 0) >= (goal.target || 1));
 }
 
-function renderProgressBar() {
+function getProgressDetails() {
   const bar = document.getElementById('progress-bar');
-  if (!bar) return;
   const record = ensureDailyRecord(today);
   const goalsDue = getGoalsForDate(today);
   const totalTargets = goalsDue.reduce((sum, g) => sum + (g.target || 1), 0);
   const completed = goalsDue.reduce((sum, g) => sum + Math.min(record.goalStatuses[g.id] || 0, g.target || 1), 0);
   const percent = totalTargets === 0 ? 0 : Math.min(100, Math.round((completed / totalTargets) * 100));
+  return { bar, record, goalsDue, totalTargets, completed, percent };
+}
+
+function renderProgressBar() {
+  const { bar, totalTargets, completed, percent } = getProgressDetails();
+  if (!bar) return;
+  bar.textContent = '';
   bar.style.width = `${percent}%`;
-  bar.textContent = `${percent}% · ${completed}/${totalTargets} steps`;
+  const label = document.getElementById('progress-label');
+  if (label) {
+    label.textContent = totalTargets === 0
+      ? 'Add goals to see your momentum'
+      : `${percent}% · ${completed}/${totalTargets} steps`;
+  }
 }
 
 function renderQuoteAndXp(metrics) {
@@ -832,6 +843,41 @@ function renderQuoteAndXp(metrics) {
     const xp = metrics.year * 10;
     const level = Math.floor(xp / 200) + 1;
     xpEl.textContent = `Level ${level} · ${xp} XP`;
+  }
+}
+
+function renderSnapshot(metrics = calculateMetrics()) {
+  const statList = document.getElementById('stat-list');
+  const { totalTargets, completed, percent } = getProgressDetails();
+  const dueToday = todos.filter(t => !t.completed && (t.dueDate === today || !t.dueDate)).length;
+
+  if (statList) {
+    statList.innerHTML = '';
+    const entries = [
+      { label: 'Today', value: `${percent}%`, detail: `${completed}/${totalTargets || 0} steps complete` },
+      { label: 'Goals active', value: metrics.goalCount, detail: 'in rotation for today' },
+      { label: 'Year total', value: metrics.year, detail: 'actions logged' },
+      { label: 'Streak', value: `${metrics.streak} days`, detail: 'keep the chain alive' },
+      { label: 'To-dos', value: dueToday, detail: 'ready to check off' }
+    ];
+    entries.forEach(entry => {
+      const li = document.createElement('li');
+      li.innerHTML = `<div class="stat-label">${entry.label}</div><div class="stat-value">${entry.value}</div><div class="meta">${entry.detail}</div>`;
+      statList.appendChild(li);
+    });
+  }
+
+  const accentPreview = document.getElementById('accent-preview');
+  if (accentPreview) {
+    const accentColor = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#22d3ee').trim();
+    accentPreview.style.background = accentColor;
+    accentPreview.style.boxShadow = `0 0 0 8px color-mix(in srgb, ${accentColor} 18%, transparent)`;
+  }
+
+  const themeNote = document.getElementById('theme-note');
+  if (themeNote) {
+    const mode = document.documentElement.getAttribute('data-theme') || 'dark';
+    themeNote.textContent = `Using ${mode} mode with your accent`;
   }
 }
 
@@ -890,9 +936,6 @@ if (todoForm) {
     e.preventDefault();
     const input = document.getElementById('todo-input');
     const due = document.getElementById('todo-due');
-    const priority = document.getElementById('todo-priority');
-    const category = document.getElementById('todo-category');
-    const recurring = document.getElementById('todo-recurring');
     const text = input.value.trim();
     if (!text) return;
     const item = {
@@ -900,16 +943,15 @@ if (todoForm) {
       text,
       completed: false,
       dueDate: due?.value || '',
-      priority: priority?.value || 'medium',
-      category: category?.value || '',
-      recurring: recurring?.value || 'none'
+      completedDate: ''
     };
     todos.push(item);
     saveTodos();
+    syncTodoCounts();
     input.value = '';
     if (due) due.value = '';
-    if (category) category.value = '';
     renderTodos();
+    renderSnapshot();
   });
 }
 
