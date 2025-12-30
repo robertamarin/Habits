@@ -14,6 +14,13 @@
       <button class="nav-link" data-target="goals">Goals</button>
       <button class="nav-link" data-target="history">History</button>
     </nav>
+    <div class="theme-controls" aria-label="Appearance controls">
+      <select id="theme-select" aria-label="Theme">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+      </select>
+      <input type="color" id="accent-picker" aria-label="Accent colour" value="#22d3ee">
+    </div>
   </header>
 
   <main>
@@ -32,13 +39,31 @@
             <div class="metric-value" id="year-count">0</div>
             <div class="metric-label">Actions completed this year</div>
           </div>
+          <div class="metric">
+            <div class="metric-value" id="streak-count">0</div>
+            <div class="metric-label">Current streak</div>
+          </div>
         </div>
       </div>
 
       <section class="panel">
         <div class="panel-header">
-          <h2>Daily goals</h2>
+          <h2>Daily progress</h2>
           <div class="goal-summary" id="goal-summary"></div>
+        </div>
+        <div class="progress-shell" aria-label="Progress toward today">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div class="feedback-row">
+          <div class="feedback-chip" id="quote"></div>
+          <div class="feedback-chip" id="xp-level"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Daily goals</h2>
+          <div class="subtle">Shows what is scheduled for the selected day</div>
         </div>
         <div id="daily-goal-grid" class="grid"></div>
         <p class="subtle" id="no-goals-message">No goals available. Add goals in the Goals page.</p>
@@ -49,12 +74,25 @@
           <h2>To-dos</h2>
           <div class="subtle">Optional, counts toward completion when done</div>
         </div>
-        <form id="todo-form" class="inline-form">
+        <form id="todo-form" class="inline-form todo-form">
           <input type="text" id="todo-input" placeholder="Add a task" required>
+          <input type="date" id="todo-due" aria-label="Due date">
+          <select id="todo-priority" aria-label="Priority">
+            <option value="medium">Priority: Medium</option>
+            <option value="high">Priority: High</option>
+            <option value="low">Priority: Low</option>
+          </select>
+          <input type="text" id="todo-category" placeholder="Category" aria-label="Category">
+          <select id="todo-recurring" aria-label="Recurring schedule">
+            <option value="none">One-time</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+          </select>
           <button type="submit">Add</button>
         </form>
-        <ul id="todo-list" class="todo-list"></ul>
+        <div class="todo-columns" id="todo-columns"></div>
         <div class="todo-actions">
+          <div id="todo-today-count" class="subtle"></div>
           <button id="clear-completed">Clear completed tasks</button>
         </div>
       </section>
@@ -69,9 +107,32 @@
         <div class="panel-header">
           <h2>Current goals</h2>
         </div>
-        <ul id="goal-list" class="goal-list"></ul>
-        <form id="goal-form" class="inline-form">
-          <input type="text" id="goal-input" placeholder="Add a daily goal" required>
+        <ul id="goal-list" class="goal-list" aria-live="polite"></ul>
+        <form id="goal-form" class="inline-form goal-form">
+          <input type="text" id="goal-input" placeholder="Add a goal" required>
+          <input type="text" id="goal-group" placeholder="Group (e.g. Morning routine)" aria-label="Group">
+          <label class="inline-label">Target per day
+            <input type="number" id="goal-target" min="1" value="1">
+          </label>
+          <select id="goal-frequency" aria-label="Frequency">
+            <option value="daily">Every day</option>
+            <option value="weekdays">Weekdays</option>
+            <option value="custom">Specific days</option>
+            <option value="week">Times per week</option>
+            <option value="month">Times per month</option>
+          </select>
+          <div class="days-picker" id="goal-days">
+            <label><input type="checkbox" value="0">Sun</label>
+            <label><input type="checkbox" value="1">Mon</label>
+            <label><input type="checkbox" value="2">Tue</label>
+            <label><input type="checkbox" value="3">Wed</label>
+            <label><input type="checkbox" value="4">Thu</label>
+            <label><input type="checkbox" value="5">Fri</label>
+            <label><input type="checkbox" value="6">Sat</label>
+          </div>
+          <label class="inline-label">Times per period
+            <input type="number" id="goal-times" min="1" value="3">
+          </label>
           <button type="submit">Add</button>
         </form>
       </section>
@@ -84,6 +145,30 @@
       </div>
       <section class="panel">
         <div id="history-matrix" class="history-matrix"></div>
+      </section>
+      <section class="panel" id="analytics">
+        <div class="panel-header">
+          <h2>Analytics</h2>
+          <select id="analytics-range" aria-label="Analytics range">
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="365">Year to date</option>
+          </select>
+        </div>
+        <div class="analytics-grid">
+          <div>
+            <h3>Streaks & rates</h3>
+            <ul id="analytics-summary" class="analytics-list"></ul>
+          </div>
+          <div>
+            <h3>Completion trends</h3>
+            <canvas id="bar-chart" width="480" height="200" aria-label="Completion chart"></canvas>
+          </div>
+          <div>
+            <h3>Export</h3>
+            <button id="export-csv">Download CSV</button>
+          </div>
+        </div>
       </section>
     </section>
   </main>
