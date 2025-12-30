@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Habit Execution</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="logo">Execution Ledger</div>
+    <nav class="nav">
+      <button class="nav-link" data-target="home">Today</button>
+      <button class="nav-link" data-target="goals">Goals</button>
+      <button class="nav-link" data-target="history">History</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="home" class="page">
+      <div class="page-header">
+        <div>
+          <h1>Daily Execution</h1>
+          <p class="subtle" id="today-label"></p>
+        </div>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-value" id="today-count">0</div>
+            <div class="metric-label">Actions completed today</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="year-count">0</div>
+            <div class="metric-label">Actions completed this year</div>
+          </div>
+        </div>
+      </div>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Daily goals</h2>
+          <div class="goal-summary" id="goal-summary"></div>
+        </div>
+        <div id="daily-goal-grid" class="grid"></div>
+        <p class="subtle" id="no-goals-message">No goals available. Add goals in the Goals page.</p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>To-dos</h2>
+          <div class="subtle">Optional, counts toward completion when done</div>
+        </div>
+        <form id="todo-form" class="inline-form">
+          <input type="text" id="todo-input" placeholder="Add a task" required>
+          <button type="submit">Add</button>
+        </form>
+        <ul id="todo-list" class="todo-list"></ul>
+        <div class="todo-actions">
+          <button id="clear-completed">Clear completed tasks</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="goals" class="page hidden">
+      <div class="page-header">
+        <h1>Goals configuration</h1>
+        <p class="subtle">Defines what a complete day requires. Changes apply only to future days.</p>
+      </div>
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Current goals</h2>
+        </div>
+        <ul id="goal-list" class="goal-list"></ul>
+        <form id="goal-form" class="inline-form">
+          <input type="text" id="goal-input" placeholder="Add a daily goal" required>
+          <button type="submit">Add</button>
+        </form>
+      </section>
+    </section>
+
+    <section id="history" class="page hidden">
+      <div class="page-header">
+        <h1>History</h1>
+        <p class="subtle">Immutable record of daily outcomes. Filled squares indicate completion.</p>
+      </div>
+      <section class="panel">
+        <div id="history-matrix" class="history-matrix"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
