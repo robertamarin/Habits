@@ -1,8 +1,21 @@
 const STORAGE_KEYS = {
   goals: 'habitGoals',
   completions: 'habitCompletions',
-  todos: 'habitTodos'
+  todos: 'habitTodos',
+  theme: 'habitTheme',
+  accent: 'habitAccent'
 };
+
+const quotes = [
+  'Small steps stack into big wins.',
+  'Consistency beats intensity.',
+  'Progress, not perfection.',
+  'Show up, even briefly.',
+  'Momentum begins with one action.',
+  'Today is a great day to move forward.'
+];
+
+const audioContext = window.AudioContext ? new AudioContext() : null;
 
 let goals = loadGoals();
 let completions = loadCompletions();
@@ -10,7 +23,9 @@ let todos = loadTodos();
 
 let today = getToday();
 
+applySavedTheme();
 initNavigation();
+initThemeControls();
 renderHome();
 renderGoalsPage();
 renderHistory();
@@ -38,9 +53,13 @@ function loadGoals() {
   if (!stored) return [];
   try {
     const parsed = JSON.parse(stored);
-    return parsed.map(goal => ({
+    return parsed.map((goal, index) => ({
       ...goal,
-      nameHistory: goal.nameHistory || [{ name: goal.name, from: goal.createdDate }]
+      nameHistory: goal.nameHistory || [{ name: goal.name, from: goal.createdDate }],
+      order: typeof goal.order === 'number' ? goal.order : index,
+      target: goal.target || 1,
+      frequency: goal.frequency || 'daily',
+      times: goal.times || 3
     }));
   } catch {
     return [];
@@ -51,7 +70,14 @@ function loadCompletions() {
   const stored = localStorage.getItem(STORAGE_KEYS.completions);
   if (!stored) return {};
   try {
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+    Object.values(parsed).forEach(record => {
+      Object.entries(record.goalStatuses || {}).forEach(([id, value]) => {
+        if (value === true) record.goalStatuses[id] = 1;
+        if (value === false) record.goalStatuses[id] = 0;
+      });
+    });
+    return parsed;
   } catch {
     return {};
   }
@@ -106,16 +132,50 @@ function initNavigation() {
   if (initialLink) initialLink.classList.add('active');
 }
 
+function initThemeControls() {
+  const themeSelect = document.getElementById('theme-select');
+  const accentPicker = document.getElementById('accent-picker');
+  if (!themeSelect || !accentPicker) return;
+  themeSelect.addEventListener('change', () => {
+    setTheme(themeSelect.value);
+  });
+  accentPicker.addEventListener('input', () => {
+    setAccent(accentPicker.value);
+  });
+}
+
+function applySavedTheme() {
+  const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) || 'dark';
+  const savedAccent = localStorage.getItem(STORAGE_KEYS.accent) || '#22d3ee';
+  setTheme(savedTheme, false);
+  setAccent(savedAccent, false);
+  const themeSelect = document.getElementById('theme-select');
+  const accentPicker = document.getElementById('accent-picker');
+  if (themeSelect) themeSelect.value = savedTheme;
+  if (accentPicker) accentPicker.value = savedAccent;
+}
+
+function setTheme(theme, persist = true) {
+  document.documentElement.setAttribute('data-theme', theme);
+  if (persist) localStorage.setItem(STORAGE_KEYS.theme, theme);
+}
+
+function setAccent(color, persist = true) {
+  document.documentElement.style.setProperty('--accent', color);
+  document.documentElement.style.setProperty('--filled', color);
+  if (persist) localStorage.setItem(STORAGE_KEYS.accent, color);
+}
+
 function renderHome() {
   const todayLabel = document.getElementById('today-label');
   todayLabel.textContent = new Date().toDateString();
 
-  const activeGoals = goals.filter(goal => !goal.archived);
+  const activeGoals = getGoalsForDate(today);
   const grid = document.getElementById('daily-goal-grid');
   grid.innerHTML = '';
 
   const record = ensureDailyRecord(today);
-  const completedCount = activeGoals.filter(goal => record.goalStatuses[goal.id]).length;
+  const completedCount = activeGoals.filter(goal => (record.goalStatuses[goal.id] || 0) >= (goal.target || 1)).length;
   const goalSummary = document.getElementById('goal-summary');
   if (activeGoals.length === 0) {
     document.getElementById('no-goals-message').style.display = 'block';
@@ -125,60 +185,102 @@ function renderHome() {
     goalSummary.textContent = `${completedCount} / ${activeGoals.length} goals completed today`;
   }
 
-  activeGoals.forEach(goal => {
-    const square = document.createElement('div');
-    square.className = 'square' + (record.goalStatuses[goal.id] ? ' completed' : '');
-    square.dataset.goalId = goal.id;
-    const label = document.createElement('div');
-    label.className = 'label';
-    label.textContent = getGoalNameForDate(goal, today);
-    square.appendChild(label);
-    if (!record.goalStatuses[goal.id]) {
-      square.addEventListener('click', () => {
-        markGoalComplete(goal.id);
-      });
+  const grouped = groupGoals(activeGoals);
+  Object.entries(grouped).forEach(([groupName, items]) => {
+    if (groupName) {
+      const heading = document.createElement('div');
+      heading.className = 'group-heading';
+      heading.textContent = groupName;
+      grid.appendChild(heading);
     }
-    grid.appendChild(square);
+    items.forEach(goal => {
+      const square = document.createElement('div');
+      const doneCount = record.goalStatuses[goal.id] || 0;
+      const done = doneCount >= (goal.target || 1);
+      square.className = 'square' + (done ? ' completed' : '');
+      square.dataset.goalId = goal.id;
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = getGoalNameForDate(goal, today);
+      const targetLabel = document.createElement('div');
+      targetLabel.className = 'meta';
+      targetLabel.textContent = `Target ${goal.target || 1} · ${describeFrequency(goal)}`;
+      square.appendChild(label);
+      square.appendChild(targetLabel);
+      if (!done) {
+        square.addEventListener('click', () => {
+          markGoalComplete(goal.id);
+        });
+      }
+      grid.appendChild(square);
+    });
   });
 
   const metrics = calculateMetrics();
   document.getElementById('today-count').textContent = metrics.today;
   document.getElementById('year-count').textContent = metrics.year;
-
+  document.getElementById('streak-count').textContent = metrics.streak;
+  renderProgressBar();
   renderTodos();
+  renderQuoteAndXp(metrics);
 }
 
 function calculateMetrics() {
   const todayRecord = ensureDailyRecord(today);
-  const todayTotal = Object.values(todayRecord.goalStatuses).filter(Boolean).length + (todayRecord.todoCount || 0);
+  const todayTotal = Object.values(todayRecord.goalStatuses).reduce((sum, val) => sum + (val || 0), 0) + (todayRecord.todoCount || 0);
   const currentYear = new Date().getFullYear();
   let yearTotal = 0;
+  let streak = 0;
+  let dateCursor = new Date(today + 'T00:00:00');
+  const goalCount = getGoalsForDate(today).length;
+
   Object.entries(completions).forEach(([date, record]) => {
     if (!date.startsWith(String(currentYear))) return;
-    const goalsCompleted = Object.values(record.goalStatuses || {}).filter(Boolean).length;
+    const goalsCompleted = Object.values(record.goalStatuses || {}).reduce((sum, val) => sum + (val || 0), 0);
     yearTotal += goalsCompleted + (record.todoCount || 0);
   });
-  return { today: todayTotal, year: yearTotal };
+
+  while (true) {
+    const dateStr = formatDate(dateCursor);
+    const applicableGoals = getGoalsForDate(dateStr);
+    const record = completions[dateStr];
+    const allDone = applicableGoals.length === 0 || (record && applicableGoals.every(g => (record.goalStatuses?.[g.id] || 0) >= (g.target || 1)));
+    if (!allDone) break;
+    streak += 1;
+    dateCursor.setDate(dateCursor.getDate() - 1);
+  }
+
+  return { today: todayTotal, year: yearTotal, streak, goalCount };
 }
 
 function markGoalComplete(goalId) {
+  const goal = goals.find(g => g.id === goalId);
+  if (!goal) return;
   const record = ensureDailyRecord(today);
-  if (record.goalStatuses[goalId]) return;
-  record.goalStatuses[goalId] = true;
+  const current = record.goalStatuses[goalId] || 0;
+  if (current >= (goal.target || 1)) return;
+  record.goalStatuses[goalId] = current + 1;
   completions[today] = record;
   saveCompletions();
   renderHome();
   renderHistory();
+  playChime();
+  triggerVibration();
+  if (isDayComplete(record)) {
+    showConfetti();
+  }
 }
 
 function renderGoalsPage() {
   const goalList = document.getElementById('goal-list');
   goalList.innerHTML = '';
-  const sortedGoals = [...goals].sort((a, b) => a.createdDate.localeCompare(b.createdDate));
+  const sortedGoals = [...goals].sort((a, b) => a.order - b.order);
 
   sortedGoals.forEach(goal => {
     const li = document.createElement('li');
     li.className = 'goal-row';
+    li.draggable = true;
+    li.dataset.id = goal.id;
 
     const nameInput = document.createElement('input');
     nameInput.value = goal.name;
@@ -191,7 +293,8 @@ function renderGoalsPage() {
 
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.textContent = goal.archived ? 'Archived' : `Active since ${goal.createdDate}`;
+    const freqLabel = describeFrequency(goal);
+    meta.textContent = `${goal.archived ? 'Archived' : 'Active'} · ${freqLabel} · Target ${goal.target || 1}`;
 
     const actions = document.createElement('div');
     actions.style.display = 'flex';
@@ -206,11 +309,64 @@ function renderGoalsPage() {
       actions.appendChild(deleteBtn);
     }
 
+    const dragHandle = document.createElement('span');
+    dragHandle.className = 'drag-handle';
+    dragHandle.textContent = '↕';
+
+    li.appendChild(dragHandle);
     li.appendChild(nameInput);
     li.appendChild(meta);
     li.appendChild(actions);
     goalList.appendChild(li);
   });
+
+  enableGoalDrag(goalList);
+}
+
+function describeFrequency(goal) {
+  switch (goal.frequency) {
+    case 'weekdays':
+      return 'Weekdays';
+    case 'custom':
+      return `Days: ${goal.days?.map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', ') || 'None'}`;
+    case 'week':
+      return `${goal.times || 3}× / week`;
+    case 'month':
+      return `${goal.times || 10}× / month`;
+    default:
+      return 'Daily';
+  }
+}
+
+function enableGoalDrag(list) {
+  let dragging;
+  list.querySelectorAll('.goal-row').forEach(row => {
+    row.addEventListener('dragstart', (e) => {
+      dragging = row;
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const target = e.currentTarget;
+      if (dragging === target) return;
+      const rect = target.getBoundingClientRect();
+      const shouldSwap = (e.clientY - rect.top) / rect.height > 0.5;
+      if (shouldSwap) {
+        target.insertAdjacentElement('afterend', dragging);
+      } else {
+        target.insertAdjacentElement('beforebegin', dragging);
+      }
+    });
+    row.addEventListener('dragend', () => {
+      persistGoalOrder(list);
+    });
+  });
+}
+
+function persistGoalOrder(list) {
+  const ids = Array.from(list.children).map(li => li.dataset.id);
+  goals = goals.map(goal => ({ ...goal, order: ids.indexOf(goal.id) }));
+  saveGoals();
 }
 
 function renameGoal(goalId, newName) {
@@ -237,7 +393,24 @@ function archiveGoal(goalId) {
 function addGoal(name) {
   const id = generateId();
   const createdDate = today;
-  const goal = { id, name, createdDate, archived: false, nameHistory: [{ name, from: createdDate }] };
+  const frequency = document.getElementById('goal-frequency')?.value || 'daily';
+  const days = Array.from(document.querySelectorAll('#goal-days input:checked')).map(c => Number(c.value));
+  const times = Number(document.getElementById('goal-times')?.value || 3);
+  const target = Number(document.getElementById('goal-target')?.value || 1);
+  const group = document.getElementById('goal-group')?.value || '';
+  const goal = {
+    id,
+    name,
+    createdDate,
+    archived: false,
+    nameHistory: [{ name, from: createdDate }],
+    frequency,
+    days,
+    times,
+    target,
+    group,
+    order: goals.length
+  };
   goals.push(goal);
   saveGoals();
   renderHome();
@@ -246,51 +419,114 @@ function addGoal(name) {
 }
 
 function renderTodos() {
-  const list = document.getElementById('todo-list');
-  list.innerHTML = '';
-  const sorted = [...todos].sort((a, b) => Number(a.completed) - Number(b.completed));
+  const columns = document.getElementById('todo-columns');
+  if (!columns) return;
+  columns.innerHTML = '';
+  const todayTodos = todos.filter(t => t.dueDate === today || (!t.dueDate && !t.completed));
+  const overdue = todos.filter(t => t.dueDate && t.dueDate < today && !t.completed);
+  const upcoming = todos.filter(t => !todayTodos.includes(t) && !overdue.includes(t));
 
-  sorted.forEach(todo => {
-    const li = document.createElement('li');
-    li.className = 'todo-item' + (todo.completed ? ' completed' : '');
-    const label = document.createElement('div');
-    label.textContent = todo.text;
+  const sections = [
+    { title: 'Due today', items: todayTodos },
+    { title: 'Overdue', items: overdue },
+    { title: 'Upcoming', items: upcoming }
+  ];
 
-    const dateMeta = document.createElement('div');
-    dateMeta.className = 'meta';
-    dateMeta.textContent = todo.completed ? `Done ${todo.completedDate}` : 'Open';
-
-    const btn = document.createElement('button');
-    if (todo.completed) {
-      btn.textContent = 'Completed';
-      btn.disabled = true;
-    } else {
-      btn.textContent = 'Mark complete';
-      btn.addEventListener('click', () => completeTodo(todo.id));
-    }
-
-    li.appendChild(label);
-    li.appendChild(dateMeta);
-    li.appendChild(btn);
-    list.appendChild(li);
+  sections.forEach(section => {
+    const col = document.createElement('div');
+    col.className = 'todo-column';
+    const header = document.createElement('div');
+    header.className = 'todo-column-header';
+    header.innerHTML = `<h3>${section.title}</h3><span class="meta">${section.items.length}</span>`;
+    col.appendChild(header);
+    const list = document.createElement('ul');
+    list.className = 'todo-list';
+    section.items
+      .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority))
+      .forEach(todo => list.appendChild(renderTodoRow(todo)));
+    col.appendChild(list);
+    columns.appendChild(col);
   });
+
+  const count = todayTodos.filter(t => !t.completed).length;
+  const countLabel = document.getElementById('todo-today-count');
+  if (countLabel) countLabel.textContent = `${count} tasks due today`;
+}
+
+function renderTodoRow(todo) {
+  const li = document.createElement('li');
+  li.className = 'todo-item' + (todo.completed ? ' completed' : '');
+  const label = document.createElement('div');
+  label.textContent = todo.text;
+  label.className = 'todo-title';
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const due = todo.dueDate ? `Due ${todo.dueDate}` : 'No due date';
+  meta.textContent = `${due} · ${todo.priority || 'medium'} · ${todo.category || 'General'}`;
+
+  const actions = document.createElement('div');
+  actions.className = 'todo-row-actions';
+
+  const snoozeBtn = document.createElement('button');
+  snoozeBtn.textContent = 'Snooze';
+  snoozeBtn.addEventListener('click', () => snoozeTodo(todo.id));
+
+  const postponeBtn = document.createElement('button');
+  postponeBtn.textContent = 'Postpone';
+  postponeBtn.addEventListener('click', () => postponeTodo(todo.id));
+
+  actions.appendChild(snoozeBtn);
+  actions.appendChild(postponeBtn);
+
+  if (todo.completed) {
+    const done = document.createElement('button');
+    done.textContent = 'Completed';
+    done.disabled = true;
+    actions.appendChild(done);
+  } else {
+    const completeBtn = document.createElement('button');
+    completeBtn.textContent = 'Mark complete';
+    completeBtn.addEventListener('click', () => completeTodo(todo.id));
+    actions.appendChild(completeBtn);
+  }
+
+  li.appendChild(label);
+  li.appendChild(meta);
+  li.appendChild(actions);
+  return li;
+}
+
+function priorityRank(value) {
+  return { high: 0, medium: 1, low: 2 }[value] ?? 1;
 }
 
 function completeTodo(id) {
   let changed = false;
+  let recurringMeta;
   todos = todos.map(todo => {
     if (todo.id !== id || todo.completed) return todo;
     changed = true;
+    recurringMeta = todo.recurring;
     return { ...todo, completed: true, completedDate: today };
   });
   if (!changed) return;
   const record = ensureDailyRecord(today);
   record.todoCount = (record.todoCount || 0) + 1;
   completions[today] = record;
+  if (recurringMeta && recurringMeta !== 'none') {
+    const original = todos.find(t => t.id === id);
+    if (original) {
+      const nextDate = recurringMeta === 'daily' ? shiftDate(original?.dueDate || today, 1) : shiftDate(original?.dueDate || today, 7);
+      const duplicate = { ...original, id: generateId(), completed: false, completedDate: '', dueDate: nextDate };
+      todos.push(duplicate);
+    }
+  }
   saveTodos();
   saveCompletions();
   renderHome();
   renderHistory();
+  playChime();
 }
 
 function clearCompletedTodos() {
@@ -302,7 +538,7 @@ function clearCompletedTodos() {
 function renderHistory() {
   const container = document.getElementById('history-matrix');
   container.innerHTML = '';
-  const allGoals = [...goals].sort((a, b) => a.createdDate.localeCompare(b.createdDate));
+  const allGoals = [...goals].sort((a, b) => a.order - b.order);
   if (allGoals.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'subtle';
@@ -343,11 +579,12 @@ function renderHistory() {
       const td = document.createElement('td');
       td.className = 'square-cell';
       const archived = goal.archivedDate && date >= goal.archivedDate;
-      if (date < goal.createdDate || archived) {
+      if (date < goal.createdDate || archived || !isGoalDue(goal, date)) {
         td.classList.add('inactive');
       } else {
         const record = completions[date];
-        const done = record && record.goalStatuses && record.goalStatuses[goal.id];
+        const doneCount = record?.goalStatuses?.[goal.id] || 0;
+        const done = doneCount >= (goal.target || 1);
         td.classList.add(done ? 'completed' : 'empty');
       }
       td.title = getGoalNameForDate(goal, date);
@@ -396,6 +633,242 @@ function getGoalNameForDate(goal, date) {
   return name;
 }
 
+function snoozeTodo(id) {
+  todos = todos.map(todo => todo.id === id ? { ...todo, dueDate: shiftDate(todo.dueDate || today, 1) } : todo);
+  saveTodos();
+  renderTodos();
+}
+
+function postponeTodo(id) {
+  todos = todos.map(todo => todo.id === id ? { ...todo, dueDate: shiftDate(todo.dueDate || today, 3) } : todo);
+  saveTodos();
+  renderTodos();
+}
+
+function shiftDate(base, days) {
+  const date = new Date((base || today) + 'T00:00:00');
+  date.setDate(date.getDate() + days);
+  return formatDate(date);
+}
+
+function renderAnalytics() {
+  const range = Number(document.getElementById('analytics-range')?.value || 7);
+  const end = new Date(today + 'T00:00:00');
+  const start = new Date(today + 'T00:00:00');
+  start.setDate(end.getDate() - (range - 1));
+  const data = [];
+  let longestStreak = 0;
+  let currentStreak = 0;
+  let totalCompletion = 0;
+  let totalDays = 0;
+  let bestDay = '';
+  let bestCount = 0;
+  let cursor = new Date(start);
+  while (cursor <= end) {
+    const dateStr = formatDate(cursor);
+    const record = completions[dateStr] || {};
+    const goalsDue = getGoalsForDate(dateStr);
+    const goalsCompleted = goalsDue.reduce((sum, g) => sum + Math.min(record.goalStatuses?.[g.id] || 0, g.target || 1), 0);
+    const goalTarget = goalsDue.reduce((sum, g) => sum + (g.target || 1), 0);
+    const todosCompleted = record.todoCount || 0;
+    const total = goalsCompleted + todosCompleted;
+    data.push({ date: dateStr, total, goalTarget });
+    if (goalTarget === 0 || goalsCompleted >= goalTarget) {
+      currentStreak += 1;
+      longestStreak = Math.max(longestStreak, currentStreak);
+    } else {
+      currentStreak = 0;
+    }
+    totalCompletion += goalTarget ? (goalsCompleted / goalTarget) : 1;
+    totalDays += 1;
+    if (total > bestCount) {
+      bestCount = total;
+      bestDay = dateStr;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const summary = document.getElementById('analytics-summary');
+  if (summary) {
+    summary.innerHTML = '';
+    const items = [
+      `Average completion: ${(totalCompletion / totalDays * 100).toFixed(0)}%`,
+      `Longest streak: ${longestStreak} days`,
+      `Best day: ${bestDay || 'N/A'} (${bestCount} actions)`,
+      `Goals defined: ${goals.length}`
+    ];
+    items.forEach(text => {
+      const li = document.createElement('li');
+      li.textContent = text;
+      summary.appendChild(li);
+    });
+  }
+
+  const canvas = document.getElementById('bar-chart');
+  if (canvas?.getContext) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const max = Math.max(...data.map(d => d.total), 1);
+    const barWidth = canvas.width / Math.max(data.length, 1);
+    data.forEach((entry, index) => {
+      const height = (entry.total / max) * (canvas.height - 20);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#22d3ee';
+      ctx.fillRect(index * barWidth, canvas.height - height, barWidth - 4, height);
+    });
+  }
+}
+
+function downloadCsv() {
+  const rows = [['Date', 'Goal ID', 'Goal count', 'Todos']];
+  Object.entries(completions).forEach(([date, record]) => {
+    Object.entries(record.goalStatuses || {}).forEach(([goalId, count]) => {
+      rows.push([date, goalId, count, record.todoCount || 0]);
+    });
+    if (!record.goalStatuses || Object.keys(record.goalStatuses).length === 0) {
+      rows.push([date, '', 0, record.todoCount || 0]);
+    }
+  });
+  const csv = rows.map(r => r.join(',')).join('\\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'habits.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function groupGoals(list) {
+  return list.reduce((acc, goal) => {
+    const key = goal.group || '';
+    acc[key] = acc[key] || [];
+    acc[key].push(goal);
+    return acc;
+  }, {});
+}
+
+function getGoalsForDate(dateStr) {
+  return goals
+    .filter(goal => !goal.archived)
+    .filter(goal => isGoalDue(goal, dateStr))
+    .sort((a, b) => a.order - b.order);
+}
+
+function isGoalDue(goal, dateStr) {
+  const date = new Date(dateStr + 'T00:00:00');
+  const day = date.getDay();
+  if (goal.archived && dateStr >= goal.archivedDate) return false;
+  if (dateStr < goal.createdDate) return false;
+  switch (goal.frequency) {
+    case 'weekdays':
+      return day >= 1 && day <= 5;
+    case 'custom':
+      return goal.days?.includes(day);
+    case 'week': {
+      const { start } = getRange(dateStr, 'week');
+      const completed = countGoalCompletions(goal.id, start, dateStr);
+      return completed < (goal.times || 3);
+    }
+    case 'month': {
+      const { start } = getRange(dateStr, 'month');
+      const completed = countGoalCompletions(goal.id, start, dateStr);
+      return completed < (goal.times || 10);
+    }
+    default:
+      return true;
+  }
+}
+
+function getRange(dateStr, type) {
+  const date = new Date(dateStr + 'T00:00:00');
+  if (type === 'week') {
+    const diff = (date.getDay() + 6) % 7;
+    const start = new Date(date);
+    start.setDate(date.getDate() - diff);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { start: formatDate(start), end: formatDate(end) };
+  }
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  return { start: formatDate(start), end: formatDate(end) };
+}
+
+function countGoalCompletions(goalId, start, end) {
+  let cursor = new Date(start + 'T00:00:00');
+  const endDate = new Date(end + 'T00:00:00');
+  let total = 0;
+  while (cursor <= endDate) {
+    const dateStr = formatDate(cursor);
+    const record = completions[dateStr];
+    total += record?.goalStatuses?.[goalId] || 0;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return total;
+}
+
+function isDayComplete(record) {
+  const dueGoals = getGoalsForDate(today);
+  return dueGoals.every(goal => (record.goalStatuses[goal.id] || 0) >= (goal.target || 1));
+}
+
+function renderProgressBar() {
+  const bar = document.getElementById('progress-bar');
+  if (!bar) return;
+  const record = ensureDailyRecord(today);
+  const goalsDue = getGoalsForDate(today);
+  const totalTargets = goalsDue.reduce((sum, g) => sum + (g.target || 1), 0);
+  const completed = goalsDue.reduce((sum, g) => sum + Math.min(record.goalStatuses[g.id] || 0, g.target || 1), 0);
+  const percent = totalTargets === 0 ? 0 : Math.min(100, Math.round((completed / totalTargets) * 100));
+  bar.style.width = `${percent}%`;
+  bar.textContent = `${percent}% · ${completed}/${totalTargets} steps`;
+}
+
+function renderQuoteAndXp(metrics) {
+  const quoteEl = document.getElementById('quote');
+  if (quoteEl) quoteEl.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+  const xpEl = document.getElementById('xp-level');
+  if (xpEl) {
+    const xp = metrics.year * 10;
+    const level = Math.floor(xp / 200) + 1;
+    xpEl.textContent = `Level ${level} · ${xp} XP`;
+  }
+}
+
+function playChime() {
+  if (!audioContext) return;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.frequency.value = 880;
+  gain.gain.setValueAtTime(0.001, audioContext.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.2, audioContext.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.3);
+  osc.start();
+  osc.stop(audioContext.currentTime + 0.35);
+}
+
+function triggerVibration() {
+  if (navigator.vibrate) navigator.vibrate(30);
+}
+
+function showConfetti() {
+  const existing = document.getElementById('confetti');
+  if (existing) existing.remove();
+  const container = document.createElement('div');
+  container.id = 'confetti';
+  for (let i = 0; i < 60; i++) {
+    const piece = document.createElement('span');
+    piece.className = 'confetti-piece';
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.backgroundColor = `hsl(${Math.random() * 360}, 80%, 60%)`;
+    container.appendChild(piece);
+  }
+  document.body.appendChild(container);
+  setTimeout(() => container.remove(), 2000);
+}
+
 // Event bindings
 const goalForm = document.getElementById('goal-form');
 if (goalForm) {
@@ -406,6 +879,8 @@ if (goalForm) {
     if (!name) return;
     addGoal(name);
     input.value = '';
+    const group = document.getElementById('goal-group');
+    if (group) group.value = '';
   });
 }
 
@@ -414,12 +889,26 @@ if (todoForm) {
   todoForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const input = document.getElementById('todo-input');
+    const due = document.getElementById('todo-due');
+    const priority = document.getElementById('todo-priority');
+    const category = document.getElementById('todo-category');
+    const recurring = document.getElementById('todo-recurring');
     const text = input.value.trim();
     if (!text) return;
-    const item = { id: generateId(), text, completed: false };
+    const item = {
+      id: generateId(),
+      text,
+      completed: false,
+      dueDate: due?.value || '',
+      priority: priority?.value || 'medium',
+      category: category?.value || '',
+      recurring: recurring?.value || 'none'
+    };
     todos.push(item);
     saveTodos();
     input.value = '';
+    if (due) due.value = '';
+    if (category) category.value = '';
     renderTodos();
   });
 }
@@ -430,3 +919,15 @@ if (clearCompletedBtn) {
     clearCompletedTodos();
   });
 }
+
+const analyticsRange = document.getElementById('analytics-range');
+if (analyticsRange) {
+  analyticsRange.addEventListener('change', renderAnalytics);
+}
+
+const exportCsvBtn = document.getElementById('export-csv');
+if (exportCsvBtn) {
+  exportCsvBtn.addEventListener('click', downloadCsv);
+}
+
+renderAnalytics();

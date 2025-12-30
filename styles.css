@@ -12,6 +12,15 @@
 
 * { box-sizing: border-box; }
 
+[data-theme="light"] {
+  --bg: #f6f7fb;
+  --panel: #ffffff;
+  --line: #d5d9e0;
+  --text: #0f172a;
+  --subtle: #475569;
+  --muted: #e2e8f0;
+}
+
 body {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
@@ -39,6 +48,21 @@ body {
 .nav {
   display: flex;
   gap: 12px;
+}
+
+.theme-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-controls select,
+.theme-controls input[type="color"] {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 8px;
 }
 
 .nav-link {
@@ -129,11 +153,54 @@ main {
   color: var(--subtle);
 }
 
+.progress-shell {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  height: 18px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--accent);
+  color: #0b1015;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: width 0.2s ease;
+}
+
+.feedback-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.feedback-chip {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 12px;
   margin-top: 12px;
+}
+
+.group-heading {
+  grid-column: 1 / -1;
+  color: var(--subtle);
+  font-size: 13px;
+  margin-top: 8px;
 }
 
 .square {
@@ -178,6 +245,14 @@ main {
   color: var(--text);
 }
 
+.inline-form select {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 10px;
+}
+
 .inline-form button {
   padding: 10px 14px;
   background: var(--accent);
@@ -197,6 +272,35 @@ main {
   gap: 8px;
 }
 
+.todo-form {
+  flex-wrap: wrap;
+}
+
+.todo-form input[type="date"],
+.todo-form input[type="text"],
+.todo-form select {
+  min-width: 150px;
+}
+
+.todo-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.todo-column {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.todo-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .todo-item {
   display: flex;
   align-items: center;
@@ -204,11 +308,16 @@ main {
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
+  background: var(--panel);
 }
 
 .todo-item.completed {
   background: var(--muted);
   color: var(--subtle);
+}
+
+.todo-title {
+  font-weight: 600;
 }
 
 .todo-item button {
@@ -221,10 +330,18 @@ main {
   cursor: pointer;
 }
 
+.todo-row-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
 .todo-actions {
   display: flex;
   justify-content: flex-end;
   margin-top: 8px;
+  gap: 8px;
+  align-items: center;
 }
 
 .todo-actions button,
@@ -253,6 +370,7 @@ main {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
+  background: var(--panel);
 }
 
 .goal-row .name {
@@ -271,6 +389,30 @@ main {
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--text);
+}
+
+.goal-form {
+  flex-wrap: wrap;
+}
+
+.inline-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--subtle);
+}
+
+.days-picker {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--subtle);
 }
 
 .history-matrix {
@@ -348,7 +490,44 @@ main {
 .history-legend .empty { background: var(--bg); }
 .history-legend .inactive { background: #11161c; }
 
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.analytics-list {
+  padding-left: 16px;
+  color: var(--text);
+}
+
+.analytics-list li {
+  margin-bottom: 6px;
+}
+
+#confetti {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -20px;
+  width: 8px;
+  height: 14px;
+  animation: fall 2s linear forwards;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(120vh) rotate(360deg);
+  }
+}
+
 @media (max-width: 720px) {
   .page-header { flex-direction: column; align-items: flex-start; }
   .metrics { width: 100%; }
+  .inline-form { flex-direction: column; }
 }
