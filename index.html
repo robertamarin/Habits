@@ -18,17 +18,40 @@
         <h1 id="app-title">Habit Engine</h1>
       </div>
     </div>
-    <div class="actions">
+    <nav class="actions" aria-label="Primary">
       <label class="switch focus-toggle">
         <input type="checkbox" id="focus-mode" />
         <span>Focus mode</span>
       </label>
       <a href="goals.html" class="ghost">Goals &amp; quitting</a>
       <button id="settings-button" type="button" class="ghost">Settings</button>
-    </div>
+    </nav>
   </header>
 
   <main>
+    <section class="summary-bar headline" aria-label="Dashboard summary">
+      <div class="summary-card">
+        <p class="stat-label">Habits</p>
+        <p class="stat-value" id="summary-habits">0</p>
+      </div>
+      <div class="summary-card">
+        <p class="stat-label">Current streak</p>
+        <p class="stat-value" id="summary-streak">0d</p>
+      </div>
+      <div class="summary-card">
+        <p class="stat-label">Longest streak</p>
+        <p class="stat-value" id="summary-longest">0d</p>
+      </div>
+      <div class="summary-card">
+        <p class="stat-label">Completion</p>
+        <p class="stat-value" id="summary-rate">0%</p>
+      </div>
+      <div class="summary-card subtle">
+        <p class="stat-label">Quick wins</p>
+        <p class="stat-value" id="summary-wins">0</p>
+      </div>
+    </section>
+
     <section class="card topline">
       <div class="summary-head">
         <div>
@@ -36,11 +59,11 @@
           <h2 id="today-label"></h2>
           <p class="muted">A calm overview of today&rsquo;s effort, streak, and momentum.</p>
         </div>
-        <div class="row">
+        <div class="row utility-actions">
           <input type="file" id="import-file" accept=".json,.csv" class="hidden" />
-          <button type="button" id="import-data" class="ghost">Import data</button>
-          <button type="button" id="export-data" class="ghost">Export JSON</button>
-          <button type="button" id="export-csv" class="ghost">Export CSV</button>
+          <button type="button" id="import-data" class="ghost">Import</button>
+          <button type="button" id="export-data" class="ghost">JSON</button>
+          <button type="button" id="export-csv" class="ghost">CSV</button>
           <button id="settings-button-top" type="button" class="ghost">Settings</button>
         </div>
       </div>
@@ -80,25 +103,22 @@
             <p class="circle-sub milestone-label">Next milestone: 7 days</p>
           </div>
         </div>
-        <div class="stat-panel">
-          <p class="eyebrow">Daily stats</p>
-          <div class="stat-grid">
-            <div class="stat-card">
-              <span class="stat-label">Completed today</span>
-              <span class="stat-value" id="complete-count">0</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-label">Habits on deck</span>
-              <span class="stat-value" id="habit-count">0</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-label">7d momentum</span>
-              <span class="stat-value accent" id="momentum">0%</span>
-            </div>
-            <div class="stat-card subtle">
-              <span class="stat-label">Quick wins</span>
-              <span class="stat-value" id="wins-pill">0</span>
-            </div>
+        <div class="summary-bar compact" aria-label="Daily stats">
+          <div class="summary-card">
+            <p class="stat-label">Completed today</p>
+            <p class="stat-value" id="complete-count">0</p>
+          </div>
+          <div class="summary-card">
+            <p class="stat-label">Habits on deck</p>
+            <p class="stat-value" id="habit-count">0</p>
+          </div>
+          <div class="summary-card">
+            <p class="stat-label">7d momentum</p>
+            <p class="stat-value accent" id="momentum">0%</p>
+          </div>
+          <div class="summary-card subtle">
+            <p class="stat-label">Quick wins</p>
+            <p class="stat-value" id="wins-pill">0</p>
           </div>
         </div>
       </div>
@@ -122,16 +142,14 @@
         <div>
           <p class="eyebrow">Quick wins</p>
           <h3>Quick wins</h3>
-          <p class="muted">Capture small victories to reinforce today&rsquo;s momentum.</p>
+          <p class="muted">Log tiny victories fast.</p>
         </div>
       </header>
-      <form id="task-form" class="stack quick-form">
-        <label class="stacked">Log a one-off win
-          <input id="task-input" type="text" placeholder="Capture a quick win" required />
-        </label>
-        <div class="row end">
-          <button type="submit">Log win</button>
-          <button id="clear-done" type="button" class="ghost danger">Clear wins</button>
+      <form id="task-form" class="quick-form" aria-label="Quick win entry">
+        <input id="task-input" type="text" placeholder="Log a quick win" required />
+        <div class="row end compact-row">
+          <button type="submit">Add</button>
+          <button id="clear-done" type="button" class="ghost danger">Clear</button>
         </div>
       </form>
       <div id="task-list" class="list quick-win-list"></div>
