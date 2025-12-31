@@ -25,10 +25,10 @@
           <a href="#habits" class="nav-link" aria-label="Checklist">Checklist</a>
           <a href="#progress" class="nav-link" aria-label="Progress">Progress</a>
           <a href="#goals" class="nav-link" aria-label="Goals and quitting">Goals</a>
-          <a href="#library" class="nav-link" aria-label="Library and cadence">Library</a>
+          <a href="#history" class="nav-link" aria-label="Year overview">History</a>
           <a href="#journal" class="nav-link" aria-label="Journal">Journal</a>
         </nav>
-        <button type="button" class="icon-button nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
+        <button type="button" class="icon-button nav-toggle mobile-only" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
       </div>
       <div class="top-actions">
         <label class="switch focus-toggle pill">
@@ -40,8 +40,6 @@
     </header>
 
     <div class="toolbar" role="group" aria-label="Data actions">
-      <input type="file" id="import-file" accept=".json,.csv" class="hidden" />
-      <button type="button" id="import-data" class="ghost" aria-label="Import data">Import</button>
       <button type="button" id="export-data" class="ghost" aria-label="Export JSON">JSON</button>
       <button type="button" id="export-csv" class="ghost" aria-label="Export CSV">CSV</button>
     </div>
@@ -53,9 +51,8 @@
             <p class="eyebrow">Today</p>
             <h2 id="today-label"></h2>
             <p class="muted">Quick glance at progress, streaks, and momentum.</p>
-            </div>
-            <div class="micro-trend" id="week-trend" aria-label="Past 7 days completion"></div>
           </div>
+        </div>
           <div class="meter-grid">
             <div class="circle-stat">
               <div class="circle-shell compact">
@@ -145,11 +142,22 @@
             </header>
             <div class="heatmap-wrap">
               <div class="calendar-head">
-                <div class="calendar-month" id="calendar-month" aria-live="polite"></div>
+                <div class="month-nav">
+                  <button type="button" class="ghost icon-button" id="prev-month" aria-label="Previous month">◀</button>
+                  <div class="calendar-month" id="calendar-month" aria-live="polite"></div>
+                  <button type="button" class="ghost icon-button" id="next-month" aria-label="Next month">▶</button>
+                </div>
+                <div class="calendar-controls">
+                  <label class="stacked">Habit filter
+                    <select id="heatmap-filter" aria-label="Heatmap habit filter">
+                      <option value="all">All</option>
+                    </select>
+                  </label>
+                </div>
                 <div class="calendar-legend" aria-label="Heatmap legend">
-                  <span>Low</span>
+                  <span>High completion</span>
                   <div class="legend-bar"><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i></div>
-                  <span>High</span>
+                  <span>Low completion</span>
                 </div>
               </div>
               <div class="weekday-labels" aria-hidden="true">
@@ -172,7 +180,6 @@
             <form id="task-form" class="quick-form" aria-label="Quick win entry">
               <input id="task-input" type="text" placeholder="Log a quick win" required aria-label="Quick win text" />
               <button type="submit" class="primary">Add</button>
-              <button id="clear-done" type="button" class="ghost danger">Clear</button>
             </form>
             <div id="task-list" class="list quick-win-list scroll-area"></div>
             <div class="row between quick-footer">
@@ -188,32 +195,21 @@
                 <p class="muted">Track outcomes and habits you are leaving behind.</p>
               </div>
             </header>
-            <form id="goal-form" class="stack goal-form" aria-label="Goal entry">
-              <label class="stacked">Goal title
-                <input id="goal-input" type="text" placeholder="Ship 12 longform essays" required aria-label="Add goal" />
-              </label>
-              <button type="submit" class="primary">Save goal</button>
-            </form>
-            <div id="goal-list" class="goal-list scroll-area" aria-live="polite"></div>
-            <div class="divider"></div>
-            <div class="grid two-col quit-grid">
+            <div class="goal-status grid two-col">
+              <div class="stack">
+                <p class="eyebrow">Goals overview</p>
+                <p class="muted">View current goals. Manage them inside Settings.</p>
+                <div id="goal-list" class="goal-list scroll-area" aria-live="polite"></div>
+              </div>
               <div class="stack">
                 <p class="eyebrow">Quit tracker</p>
-                <p class="muted">Log habits you are quitting and monitor time away.</p>
-                <form id="quit-form" class="grid two-col" aria-label="Quit tracker form">
-                  <label class="stacked">Habit name
-                    <input id="quit-name" type="text" placeholder="No sugar drinks" required aria-label="Habit to quit" />
-                  </label>
-                  <label class="stacked">Quit date
-                    <input id="quit-date" type="date" required aria-label="Quit date" />
-                  </label>
-                  <button type="submit" class="primary full-width">Record</button>
-                </form>
+                <p class="muted">Timers stay stable while you focus on progress.</p>
+                <div class="scroll-area">
+                  <div id="quit-list" class="quit-list"></div>
+                  <p class="muted" id="empty-quit">No retired habits yet.</p>
+                </div>
               </div>
-              <div class="scroll-area">
-                <div id="quit-list" class="quit-list"></div>
-                <p class="muted" id="empty-quit">No retired habits yet.</p>
-              </div>
+              <p class="muted manage-note">Manage goals, quit timers, and habits in Settings.</p>
             </div>
           </section>
         </div>
@@ -228,86 +224,7 @@
             <button id="mark-all" type="button" class="ghost">Mark all done</button>
           </header>
           <div id="habit-list" class="list draggable-list"></div>
-          <p class="muted" id="empty-habits">Add habits below to see them here.</p>
-        </section>
-
-        <section class="card library-card span-12" id="library" data-section="library">
-          <header class="card-head">
-            <div>
-              <p class="eyebrow">Habits</p>
-              <h3>Library &amp; cadence</h3>
-              <p class="muted">Create, edit, and remove habits from the main dashboard.</p>
-            </div>
-          </header>
-          <form id="habit-form" class="stack" aria-label="Habit builder">
-            <label class="stacked">Name
-              <input id="habit-input" type="text" placeholder="Name (Stretch, Write, Meditate)" required aria-label="Habit name" />
-            </label>
-            <div class="grid two-col">
-              <label class="stacked">Icon
-                <select id="habit-icon" aria-label="Habit icon">
-                  <option value="">None</option>
-                  <option value="🔥">🔥 Fire</option>
-                  <option value="✅">✅ Check</option>
-                  <option value="🌿">🌿 Calm</option>
-                  <option value="📚">📚 Study</option>
-                  <option value="💪">💪 Strength</option>
-                  <option value="🧘">🧘 Flow</option>
-                  <option value="🌅">🌅 Dawn</option>
-                  <option value="🎯">🎯 Focus</option>
-                  <option value="🏃">🏃 Move</option>
-                  <option value="☕">☕ Mindful sip</option>
-                </select>
-              </label>
-              <label class="stacked">Accent
-                <input id="habit-color" type="color" value="#5563ff" aria-label="Habit accent color" />
-              </label>
-            </div>
-            <label class="stacked">Cadence
-              <select id="habit-cadence" aria-label="Habit cadence">
-                <option value="daily">Every day</option>
-                <option value="weekdays">Weekdays</option>
-                <option value="custom">Specific days</option>
-              </select>
-            </label>
-            <div class="days" id="day-picker" aria-label="Pick specific days">
-              <label><input type="checkbox" value="0" />Sun</label>
-              <label><input type="checkbox" value="1" />Mon</label>
-              <label><input type="checkbox" value="2" />Tue</label>
-              <label><input type="checkbox" value="3" />Wed</label>
-              <label><input type="checkbox" value="4" />Thu</label>
-              <label><input type="checkbox" value="5" />Fri</label>
-              <label><input type="checkbox" value="6" />Sat</label>
-            </div>
-            <div class="row end">
-              <span class="muted" id="habit-edit-hint">Add to today&rsquo;s checklist</span>
-              <button type="submit" id="habit-submit" class="primary">Add habit</button>
-            </div>
-          </form>
-          <div id="library-list" class="list"></div>
-        </section>
-
-        <section class="card history-card span-12" data-focus-hidden data-section="history">
-          <header class="card-head">
-            <div>
-              <p class="eyebrow">Year overview</p>
-              <h3>Long view</h3>
-              <p class="muted">Scan months or years with the condensed dropdown.</p>
-            </div>
-            <div class="row wrap">
-              <button type="button" id="history-toggle" class="ghost">Expand year view</button>
-              <label class="stacked">View
-                <select id="history-mode" aria-label="History mode">
-                  <option value="year">Year</option>
-                  <option value="month">Month</option>
-                </select>
-              </label>
-              <label class="stacked" for="year-picker">Year
-                <select id="year-picker" aria-label="Year picker"></select>
-              </label>
-            </div>
-          </header>
-          <div id="history" class="history-grid collapsed"></div>
+          <p class="muted" id="empty-habits">Add habits in Settings to see them here.</p>
         </section>
 
         <button type="button" class="cta-chip hidden" id="notes-cta">Open notes</button>
@@ -322,6 +239,7 @@
           <div class="tab-head" role="tablist">
             <button type="button" class="tab active" data-tab="reflection" aria-controls="journal-body">Daily reflection</button>
             <button type="button" class="tab" data-tab="dreams" aria-controls="dream-body">Dream journal</button>
+            <button type="button" class="tab" data-tab="ideas" aria-controls="idea-body">Ideas</button>
           </div>
           <div class="tab-body" id="journal-body" data-tab-panel="reflection">
             <form id="journal-form" class="stack">
@@ -345,6 +263,40 @@
             </form>
             <div id="dream-list" class="list scroll-area"></div>
           </div>
+          <div class="tab-body hidden" id="idea-body" data-tab-panel="ideas">
+            <form id="idea-form" class="stack">
+              <input id="idea-title" type="text" placeholder="Idea headline" aria-label="Idea title" />
+              <textarea id="idea-text" rows="4" placeholder="Capture a quick idea before it fades." required aria-label="Idea entry"></textarea>
+              <div class="row end">
+                <span class="muted" id="idea-saved">Unsaved</span>
+                <button type="submit" class="primary">Save idea</button>
+              </div>
+            </form>
+            <div id="idea-list" class="list scroll-area"></div>
+          </div>
+        </section>
+
+        <section class="card history-card span-12" data-focus-hidden data-section="history">
+          <header class="card-head">
+            <div>
+              <p class="eyebrow">Year overview</p>
+              <h3>Long view</h3>
+              <p class="muted">Scan months or years with the condensed dropdown.</p>
+            </div>
+            <div class="row wrap">
+              <button type="button" id="history-toggle" class="ghost">Expand year view</button>
+              <label class="stacked">View
+                <select id="history-mode" aria-label="History mode">
+                  <option value="year">Year</option>
+                  <option value="month">Month</option>
+                </select>
+              </label>
+              <label class="stacked" for="year-picker">Year
+                <select id="year-picker" aria-label="Year picker"></select>
+              </label>
+            </div>
+          </header>
+          <div id="history" class="history-grid collapsed"></div>
         </section>
       </main>
     </div>
@@ -399,6 +351,88 @@
           <input type="checkbox" data-section-toggle value="quit" />
           <span>Hide quit tracker</span>
         </label>
+      </div>
+      <div class="stack settings-grid">
+        <section class="panelish">
+          <p class="eyebrow">Data</p>
+          <div class="row wrap">
+            <input type="file" id="import-file" accept=".json,.csv" class="hidden" />
+            <button type="button" id="import-json" class="ghost" aria-label="Import JSON">Import JSON</button>
+            <button type="button" id="import-csv" class="ghost" aria-label="Import CSV">Import CSV</button>
+          </div>
+        </section>
+        <section class="panelish">
+          <p class="eyebrow">Habit library</p>
+          <form id="habit-form" class="stack" aria-label="Habit builder">
+            <label class="stacked">Name
+              <input id="habit-input" type="text" placeholder="Name (Stretch, Write, Meditate)" required aria-label="Habit name" />
+            </label>
+            <div class="grid two-col">
+              <label class="stacked">Icon
+                <select id="habit-icon" aria-label="Habit icon">
+                  <option value="">None</option>
+                  <option value="🔥">🔥 Fire</option>
+                  <option value="✅">✅ Check</option>
+                  <option value="🌿">🌿 Calm</option>
+                  <option value="📚">📚 Study</option>
+                  <option value="💪">💪 Strength</option>
+                  <option value="🧘">🧘 Flow</option>
+                  <option value="🌅">🌅 Dawn</option>
+                  <option value="🎯">🎯 Focus</option>
+                  <option value="🏃">🏃 Move</option>
+                  <option value="☕">☕ Mindful sip</option>
+                </select>
+              </label>
+              <label class="stacked">Accent
+                <input id="habit-color" type="color" value="#5563ff" aria-label="Habit accent color" />
+              </label>
+            </div>
+            <label class="stacked">Cadence
+              <select id="habit-cadence" aria-label="Habit cadence">
+                <option value="daily">Every day</option>
+                <option value="weekdays">Weekdays</option>
+                <option value="custom">Specific days</option>
+              </select>
+            </label>
+            <div class="days" id="day-picker" aria-label="Pick specific days">
+              <label><input type="checkbox" value="0" />Sun</label>
+              <label><input type="checkbox" value="1" />Mon</label>
+              <label><input type="checkbox" value="2" />Tue</label>
+              <label><input type="checkbox" value="3" />Wed</label>
+              <label><input type="checkbox" value="4" />Thu</label>
+              <label><input type="checkbox" value="5" />Fri</label>
+              <label><input type="checkbox" value="6" />Sat</label>
+            </div>
+            <div class="row between">
+              <span class="muted" id="habit-edit-hint">Add to today&rsquo;s checklist</span>
+              <button type="submit" id="habit-submit" class="primary">Add habit</button>
+            </div>
+            <div id="library-list" class="list"></div>
+          </form>
+        </section>
+        <section class="panelish">
+          <p class="eyebrow">Annual goals</p>
+          <form id="goal-form" class="stack goal-form" aria-label="Goal entry">
+            <label class="stacked">Goal title
+              <input id="goal-input" type="text" placeholder="Ship 12 longform essays" required aria-label="Add goal" />
+            </label>
+            <button type="submit" class="primary">Save goal</button>
+          </form>
+          <div id="goal-manage-list" class="goal-list scroll-area" aria-live="polite"></div>
+        </section>
+        <section class="panelish">
+          <p class="eyebrow">Quit tracker</p>
+          <form id="quit-form" class="grid two-col" aria-label="Quit tracker form">
+            <label class="stacked">Habit name
+              <input id="quit-name" type="text" placeholder="No sugar drinks" required aria-label="Habit to quit" />
+            </label>
+            <label class="stacked">Quit date
+              <input id="quit-date" type="date" required aria-label="Quit date" />
+            </label>
+            <button type="submit" class="primary full-width">Record</button>
+          </form>
+          <div id="quit-manage-list" class="quit-list"></div>
+        </section>
       </div>
       <div class="row end">
         <span class="muted">Full reset wipes everything</span>
