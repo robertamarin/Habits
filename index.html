@@ -44,7 +44,7 @@
         <div>
           <p class="eyebrow" id="today-label"></p>
           <h1>Daily execution</h1>
-          <p class="muted">Ship small actions, keep the streak alive.</p>
+          <p class="muted">Ship small actions, keep the streak alive. Today is a new chance to fill the grid.</p>
         </div>
         <div class="stack">
           <div class="pill" id="quote">Momentum starts with one tiny win.</div>
@@ -63,6 +63,7 @@
         <div class="progress">
           <div id="progress-bar" class="progress-bar"></div>
         </div>
+        <div class="week-graphic" id="week-graphic" aria-label="Weekly actions heatmap"></div>
       </section>
 
       <div class="grid">
@@ -119,6 +120,60 @@
           </div>
           <div class="list" id="break-list"></div>
           <p class="muted" id="break-empty">Add quit habits in Goals.</p>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Analytics pulse</p>
+            <h2>Big picture</h2>
+          </div>
+        </div>
+        <div class="insights" id="insight-cards"></div>
+      </section>
+
+      <div class="grid">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Daily log</p>
+              <h2>Journal the day</h2>
+            </div>
+          </div>
+          <form id="journal-form" class="stack">
+            <div class="row wrap">
+              <input type="date" id="journal-date" aria-label="Journal date">
+              <input type="text" id="journal-title" placeholder="Title (optional)">
+            </div>
+            <textarea id="journal-text" rows="3" placeholder="What happened? Wins, setbacks, lessons." required></textarea>
+            <div class="row wrap">
+              <button type="submit">Save log</button>
+              <input type="search" id="journal-search" placeholder="Search log entries">
+            </div>
+          </form>
+          <div class="list" id="journal-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Dream capture</p>
+              <h2>Morning notes</h2>
+            </div>
+          </div>
+          <form id="dream-form" class="stack">
+            <div class="row wrap">
+              <input type="date" id="dream-date" aria-label="Dream date">
+              <input type="text" id="dream-title" placeholder="Dream headline">
+            </div>
+            <textarea id="dream-text" rows="3" placeholder="What do you remember?" required></textarea>
+            <div class="row wrap">
+              <button type="submit">Save dream</button>
+              <input type="search" id="dream-search" placeholder="Search dreams">
+            </div>
+          </form>
+          <div class="list" id="dream-list"></div>
         </section>
       </div>
     </section>
