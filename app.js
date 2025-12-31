@@ -52,6 +52,11 @@
     weekTrend: document.getElementById('week-trend'),
     streakRing: document.getElementById('streak-ring'),
     streakFill: document.querySelector('#streak-ring .ring-fill'),
+    summaryHabits: document.getElementById('summary-habits'),
+    summaryStreak: document.getElementById('summary-streak'),
+    summaryLongest: document.getElementById('summary-longest'),
+    summaryRate: document.getElementById('summary-rate'),
+    summaryWins: document.getElementById('summary-wins'),
     habitList: document.getElementById('habit-list'),
     emptyHabits: document.getElementById('empty-habits'),
     completeCount: document.getElementById('complete-count'),
@@ -432,6 +437,7 @@
       dom.winsPill.classList.add('wins-pulse');
       setTimeout(() => dom.winsPill && dom.winsPill.classList.remove('wins-pulse'), 260);
     }
+    renderDashboardSummary();
   };
 
   const renderLibrary = () => {
@@ -512,6 +518,7 @@
       item.append(block, actions);
       dom.library.append(item);
     });
+    renderDashboardSummary();
   };
 
   const renderJournal = () => {
@@ -625,6 +632,28 @@
     return streak;
   };
 
+  const computeLongestStreak = () => {
+    const dates = dateKeysBack(365).reverse();
+    let longest = 0;
+    let current = 0;
+    dates.forEach((date) => {
+      const todaysHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
+      if (!todaysHabits.length) {
+        current = 0;
+        return;
+      }
+      const day = state.days[date];
+      const done = todaysHabits.filter((h) => day?.habits?.[h.id]).length;
+      if (done === todaysHabits.length) {
+        current += 1;
+        longest = Math.max(longest, current);
+      } else {
+        current = 0;
+      }
+    });
+    return longest;
+  };
+
   const streakThrough = (dateValue) => {
     let streak = 0;
     const start = new Date(dateValue);
@@ -688,6 +717,7 @@
     renderStats();
     renderWeekly();
     renderMonthly();
+    renderDashboardSummary(percent, done, todayHabits.length, day.tasks.length);
   };
 
   const renderStreakBar = () => {
@@ -774,12 +804,10 @@
       const fill = document.createElement('div');
       fill.className = 'day-fill';
       fill.style.height = `${percent}%`;
+      fill.title = `${formatDate(date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${percent}% complete`;
       track.append(fill);
-      const value = document.createElement('div');
-      value.className = 'day-value';
-      value.textContent = `${percent}%`;
       bar.title = `${formatDate(date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${percent}% complete`;
-      bar.append(dayLabel, track, value);
+      bar.append(dayLabel, track);
       if (date === today()) bar.classList.add('today');
       dom.weeklyBars.append(bar);
     });
@@ -1061,7 +1089,7 @@
         renderQuitList();
       });
 
-      row.append(left, timer, reset);
+      row.append(left, reset);
       dom.quitList.append(row);
     });
     updateQuitTimers();
@@ -1070,6 +1098,20 @@
   const renderTotals = () => {
     if (dom.goalTotal) dom.goalTotal.textContent = String(state.goals.length);
     if (dom.habitTotal) dom.habitTotal.textContent = String(state.habits.length);
+    renderDashboardSummary();
+  };
+
+  const renderDashboardSummary = (todayPercent, done = null, total = null, wins = null) => {
+    if (dom.summaryHabits) dom.summaryHabits.textContent = String(state.habits.length);
+    const streakCount = computeStreak();
+    const longest = computeLongestStreak();
+    if (dom.summaryStreak) dom.summaryStreak.textContent = `${streakCount}d`;
+    if (dom.summaryLongest) dom.summaryLongest.textContent = `${longest}d`;
+    const percent = todayPercent ?? dayCompletion(today());
+    if (dom.summaryRate) dom.summaryRate.textContent = `${percent}%`;
+    const day = getDay(today());
+    const winsCount = wins ?? day.tasks.length;
+    if (dom.summaryWins) dom.summaryWins.textContent = String(winsCount);
   };
 
   const updateQuitTimers = () => {
@@ -1077,15 +1119,7 @@
     timers.forEach((node) => {
       const start = new Date(node.dataset.timer);
       const diff = Date.now() - start.getTime();
-      if (diff < 0) {
-        node.textContent = 'Starting soon';
-        return;
-      }
-      const seconds = Math.floor(diff / 1000);
-      if (seconds < 60) {
-        node.textContent = 'Moments ago';
-        return;
-      }
+      const seconds = Math.max(0, Math.floor(diff / 1000));
       const days = Math.floor(seconds / 86400);
       const hours = Math.floor((seconds % 86400) / 3600);
       const minutes = Math.floor((seconds % 3600) / 60);
