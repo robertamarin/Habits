@@ -7,7 +7,7 @@
   const defaultState = () => ({
     habits: [],
     days: {},
-    theme: 'dark',
+    theme: 'light',
     title: "Robert's 2026 Habit Engine",
     accent: 'violet',
     quits: [],
@@ -45,10 +45,13 @@
     appTitle: document.getElementById('app-title'),
     todayLabel: document.getElementById('today-label'),
     progressRing: document.getElementById('progress-ring'),
-    progressFill: document.querySelector('.ring-fill'),
+    progressFill: document.querySelector('#progress-ring .ring-fill'),
     progressValue: document.getElementById('progress-value'),
     ringSubtext: document.getElementById('ring-subtext'),
     milestoneLabel: document.querySelector('.milestone-label'),
+    weekTrend: document.getElementById('week-trend'),
+    streakRing: document.getElementById('streak-ring'),
+    streakFill: document.querySelector('#streak-ring .ring-fill'),
     habitList: document.getElementById('habit-list'),
     emptyHabits: document.getElementById('empty-habits'),
     completeCount: document.getElementById('complete-count'),
@@ -198,9 +201,9 @@
   };
 
   const applyTheme = () => {
-    const mode = state.theme || 'dark';
-    if (mode === 'light') {
-      document.documentElement.setAttribute('data-theme', 'light');
+    const mode = state.theme || 'light';
+    if (mode === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
     } else {
       document.documentElement.removeAttribute('data-theme');
     }
@@ -385,7 +388,10 @@
     const day = getDay(today());
     dom.taskList.innerHTML = '';
     if (!day.tasks.length) {
-      dom.taskList.innerHTML = '<div class="empty">No wins yet</div>';
+      dom.taskList.innerHTML = '<div class="empty">No wins yet—log your first quick win.</div>';
+      if (dom.taskCount) dom.taskCount.textContent = 'No wins yet';
+      if (dom.winsPill) dom.winsPill.textContent = '0';
+      return;
     }
 
     day.tasks.forEach((task) => {
@@ -422,7 +428,7 @@
 
     dom.taskCount.textContent = `${day.tasks.length} logged`;
     if (dom.winsPill) {
-      dom.winsPill.textContent = `Wins today: ${day.tasks.length}`;
+      dom.winsPill.textContent = `${day.tasks.length}`;
       dom.winsPill.classList.add('wins-pulse');
       setTimeout(() => dom.winsPill && dom.winsPill.classList.remove('wins-pulse'), 260);
     }
@@ -474,7 +480,7 @@
           dom.dayPicker.querySelectorAll('input').forEach((i) => (i.checked = false));
         }
         if (dom.habitIcon) dom.habitIcon.value = habit.icon || '';
-        if (dom.habitColor) dom.habitColor.value = habit.color || '#7c3aed';
+        if (dom.habitColor) dom.habitColor.value = habit.color || '#4a7ed5';
         if (dom.habitSubmit) dom.habitSubmit.textContent = 'Update habit';
         if (dom.habitEditHint) dom.habitEditHint.textContent = 'Editing existing habit';
       });
@@ -493,7 +499,7 @@
           if (dom.habitEditHint) dom.habitEditHint.textContent = 'Add to today\'s checklist';
           if (dom.habitInput) dom.habitInput.value = '';
           if (dom.habitIcon) dom.habitIcon.value = '';
-          if (dom.habitColor) dom.habitColor.value = '#7c3aed';
+          if (dom.habitColor) dom.habitColor.value = '#4a7ed5';
         }
         saveState();
         renderChecklist();
@@ -666,7 +672,7 @@
     const percent = Math.round((done / total) * 100);
     dom.completeCount.textContent = done;
     if (dom.progressValue) dom.progressValue.textContent = `${percent}%`;
-    if (dom.ringSubtext) dom.ringSubtext.textContent = `${done} / ${todayHabits.length}`;
+    if (dom.ringSubtext) dom.ringSubtext.textContent = `${done} of ${todayHabits.length} habits`;
     if (dom.progressRing) dom.progressRing.setAttribute('title', `${percent}% complete (${done}/${todayHabits.length})`);
     const circumference = 440;
     const offset = circumference - (percent / 100) * circumference;
@@ -677,7 +683,7 @@
       setTimeout(() => dom.progressFill && dom.progressFill.classList.remove('wins-pulse'), 300);
     }
     lastProgressPercent = percent;
-    dom.streak.textContent = `${computeStreak()}`;
+    dom.streak.textContent = `${computeStreak()}d`;
     renderStreakBar();
     renderStats();
     renderWeekly();
@@ -688,11 +694,11 @@
     if (!dom.streakBar) return;
     const streakCount = computeStreak();
     const percent = Math.min((streakCount / 60) * 100, 100);
-    const fill = dom.streakBar.querySelector('.streak-fill');
-    if (fill) fill.style.width = `${percent}%`;
-    if (dom.streak) dom.streak.textContent = `${streakCount}`;
-    const value = dom.streakBar.querySelector('.streak-value');
-    if (value) value.textContent = `${streakCount}d`;
+    const circumference = 440;
+    const offset = circumference - (percent / 100) * circumference;
+    if (dom.streakFill) dom.streakFill.style.strokeDashoffset = offset;
+    if (dom.streakFill) dom.streakFill.style.strokeDasharray = `${circumference}`;
+    if (dom.streak) dom.streak.textContent = `${streakCount}d`;
     dom.streakBar.setAttribute('title', `Current streak: ${streakCount} day${streakCount === 1 ? '' : 's'}`);
     const milestones = [7, 14, 30, 60];
     const reached = milestones.filter((m) => streakCount >= m).pop();
@@ -727,6 +733,20 @@
       const tasksDone = getDay(today()).tasks.length;
       const minutes = tasksDone * 15;
       dom.focusTime.textContent = `${(minutes / 60).toFixed(1)}h`;
+    }
+
+    if (dom.weekTrend) {
+      dom.weekTrend.innerHTML = '';
+      const chronDates = [...dates].reverse();
+      [...percents].reverse().forEach((value, idx) => {
+        const bar = document.createElement('span');
+        const height = Math.max(6, (value / 100) * 32);
+        bar.style.height = `${height}px`;
+        const tone = value >= 80 ? 'var(--success)' : value >= 50 ? 'var(--accent)' : 'var(--warning)';
+        bar.style.background = tone;
+        bar.title = `${formatDate(chronDates[idx], { weekday: 'short', month: 'short', day: 'numeric' })}: ${value}%`;
+        dom.weekTrend.append(bar);
+      });
     }
   };
 
@@ -767,13 +787,10 @@
 
   const renderMonthly = () => {
     if (!dom.monthlyStrip) return;
-    const todayDate = new Date();
-    const activeYear = dom.yearPicker ? Number(dom.yearPicker.value || todayDate.getFullYear()) : todayDate.getFullYear();
     dom.monthlyStrip.innerHTML = '';
-    const monthStart = new Date(activeYear, todayDate.getMonth(), 1);
     const dates = Array.from({ length: 30 }).map((_, i) => {
-      const d = new Date(monthStart);
-      d.setDate(monthStart.getDate() + i);
+      const d = new Date();
+      d.setDate(d.getDate() - (29 - i));
       return d.toISOString().slice(0, 10);
     });
     dates.forEach((date) => {
@@ -1019,19 +1036,23 @@
       const name = document.createElement('strong');
       name.textContent = quit.name;
       const meta = document.createElement('div');
-      meta.className = 'meta';
-      meta.textContent = `Quit on ${formatDate(quit.date, { month: 'long', day: 'numeric', year: 'numeric' })}`;
-      left.append(name, meta);
-
+      meta.className = 'meta-line';
+      const quitDateText = formatDate(quit.date, { month: 'long', day: 'numeric', year: 'numeric' });
+      const quitDate = document.createElement('span');
+      quitDate.textContent = `Quit on ${quitDateText}`;
+      const sep = document.createElement('span');
+      sep.textContent = '·';
       const timer = document.createElement('span');
-      timer.className = 'badge';
+      timer.className = 'elapsed';
       timer.dataset.timer = quit.date;
+      timer.dataset.dateLabel = quitDateText;
       timer.textContent = '';
       timer.title = 'Time since quitting';
+      meta.append(quitDate, sep, timer);
+      left.append(name, meta);
 
       const reset = document.createElement('button');
       reset.type = 'button';
-      reset.className = 'ghost';
       reset.textContent = 'Reset';
       reset.addEventListener('click', () => {
         if (!confirm('Reset this quit timer to today?')) return;
@@ -1113,7 +1134,7 @@
       const cadence = dom.habitCadence.value;
       const days = Array.from(dom.dayPicker.querySelectorAll('input:checked')).map((d) => Number(d.value));
       const icon = dom.habitIcon ? dom.habitIcon.value : '';
-      const color = dom.habitColor ? dom.habitColor.value : '#7c3aed';
+      const color = dom.habitColor ? dom.habitColor.value : '#4a7ed5';
       if (editingHabitId) {
         const existing = state.habits.find((h) => h.id === editingHabitId);
         if (existing) {
@@ -1130,7 +1151,7 @@
       dom.habitInput.value = '';
       dom.dayPicker.querySelectorAll('input').forEach((i) => (i.checked = false));
       if (dom.habitIcon) dom.habitIcon.value = '';
-      if (dom.habitColor) dom.habitColor.value = '#7c3aed';
+      if (dom.habitColor) dom.habitColor.value = '#4a7ed5';
       editingHabitId = null;
       if (dom.habitSubmit) dom.habitSubmit.textContent = 'Add habit';
       if (dom.habitEditHint) dom.habitEditHint.textContent = 'Add to today\'s checklist';
@@ -1261,7 +1282,7 @@
       const id = idIdx === -1 ? `csv-${cols[nameIdx]}` : (cols[idIdx] || '').replace(/"/g, '');
       const name = (cols[nameIdx] || '').replace(/^"|"$/g, '').replace(/""/g, '"');
       const done = Number(cols[doneIdx]) === 1;
-      if (!habitsById[id]) habitsById[id] = { id, name, cadence: 'daily', days: [], icon: '', color: '#7c3aed' };
+      if (!habitsById[id]) habitsById[id] = { id, name, cadence: 'daily', days: [], icon: '', color: '#4a7ed5' };
       if (!days[date]) days[date] = { habits: {}, tasks: [], journal: [], dreams: [] };
       days[date].habits[id] = done;
     });

@@ -34,6 +34,7 @@
         <div>
           <p class="eyebrow">Today</p>
           <h2 id="today-label"></h2>
+          <p class="muted">A calm overview of today&rsquo;s effort, streak, and momentum.</p>
         </div>
         <div class="row">
           <input type="file" id="import-file" accept=".json,.csv" class="hidden" />
@@ -43,99 +44,121 @@
           <button id="settings-button-top" type="button" class="ghost">Settings</button>
         </div>
       </div>
-      <div class="summary-grid">
-        <div class="ring-stack">
-          <p class="eyebrow">Daily completion</p>
-          <div class="ring-wrap">
-            <svg id="progress-ring" viewBox="0 0 160 160">
-              <defs>
-                <linearGradient id="ringGradient" x1="0%" x2="100%" y1="0%" y2="0%">
-                  <stop offset="0%" stop-color="var(--accent-strong)" />
-                  <stop offset="100%" stop-color="var(--accent-soft)" />
-                </linearGradient>
-              </defs>
-              <circle class="ring-bg" cx="80" cy="80" r="70" />
-              <circle class="ring-fill" cx="80" cy="80" r="70" />
-            </svg>
-            <div class="ring-center">
-              <div class="ring-number" id="progress-value">0%</div>
-              <div class="ring-sub" id="ring-subtext">0 / 0</div>
-            </div>
-          </div>
-          <div class="streak-block">
-            <div class="row between">
-              <p class="eyebrow">Current streak</p>
-              <span class="muted milestone-label">Milestones: 7 · 14 · 30 · 60</span>
-            </div>
-            <div class="streak-bar" id="streak-bar">
-              <div class="streak-fill"></div>
-              <div class="ticks">
-                <span data-mark="7"></span>
-                <span data-mark="14"></span>
-                <span data-mark="30"></span>
-                <span data-mark="60"></span>
+      <div class="overview-grid">
+        <div class="circle-grid">
+          <div class="circle-stat">
+            <div class="circle-shell">
+              <svg id="progress-ring" viewBox="0 0 160 160">
+                <defs>
+                  <linearGradient id="ringGradient" x1="0%" x2="100%" y1="0%" y2="0%">
+                    <stop offset="0%" stop-color="var(--accent-strong)" />
+                    <stop offset="100%" stop-color="var(--accent-soft)" />
+                  </linearGradient>
+                </defs>
+                <circle class="ring-bg" cx="80" cy="80" r="70" />
+                <circle class="ring-fill" cx="80" cy="80" r="70" />
+              </svg>
+              <div class="ring-center">
+                <div class="ring-number" id="progress-value">0%</div>
               </div>
-              <span class="streak-value" id="streak"></span>
             </div>
+            <p class="circle-label">Daily completion</p>
+            <p class="circle-sub" id="ring-subtext">0 of 0 habits</p>
+            <div class="micro-trend" id="week-trend" aria-label="Past 7 days completion"></div>
+          </div>
+          <div class="circle-stat">
+            <div class="circle-shell streak-shell" id="streak-bar">
+              <svg id="streak-ring" viewBox="0 0 160 160">
+                <circle class="ring-bg" cx="80" cy="80" r="70" />
+                <circle class="ring-fill streak-fill" cx="80" cy="80" r="70" />
+              </svg>
+              <div class="ring-center">
+                <div class="ring-number" id="streak">0d</div>
+              </div>
+            </div>
+            <p class="circle-label">Current streak</p>
+            <p class="circle-sub milestone-label">Next milestone: 7 days</p>
           </div>
         </div>
-        <div class="count-stack">
-          <div class="primary-number" id="complete-count">0</div>
-          <p class="muted">Completed today</p>
-          <div class="pill stat-pill">
-            <strong id="habit-count">0</strong>
-            <span class="muted">Habits on deck</span>
-          </div>
-          <div class="pill stat-pill">
-            <strong id="momentum">0%</strong>
-            <span class="muted">7d momentum</span>
+        <div class="stat-panel">
+          <p class="eyebrow">Daily stats</p>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <span class="stat-label">Completed today</span>
+              <span class="stat-value" id="complete-count">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Habits on deck</span>
+              <span class="stat-value" id="habit-count">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">7d momentum</span>
+              <span class="stat-value accent" id="momentum">0%</span>
+            </div>
+            <div class="stat-card subtle">
+              <span class="stat-label">Quick wins</span>
+              <span class="stat-value" id="wins-pill">0</span>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="grid actionable">
-      <article class="card wide-habits" data-focus-visible data-section="habits">
-        <header class="card-head">
-          <div>
-            <p class="eyebrow">Checklist</p>
-            <h3>Today&rsquo;s habits</h3>
-          </div>
-          <button id="mark-all" type="button" class="ghost">Mark all done</button>
-        </header>
-        <div id="habit-list" class="list draggable-list"></div>
-        <p class="muted" id="empty-habits">Add habits below to see them here.</p>
-      </article>
-
-      <article class="card" data-focus-visible data-section="wins">
-        <header class="card-head">
-          <div>
-            <p class="eyebrow">Quick wins</p>
-            <h3>Quick wins</h3>
-          </div>
-          <span class="pill stat-pill" id="wins-pill">Wins today: 0</span>
-        </header>
-        <form id="task-form" class="stack quick-form">
-          <label class="stacked">Log a one-off win
-            <input id="task-input" type="text" placeholder="Capture a quick win" required />
-          </label>
-          <div class="row end">
-            <button type="submit">Log win</button>
-            <button id="clear-done" type="button" class="ghost">Clear wins</button>
-          </div>
-        </form>
-        <div id="task-list" class="list quick-win-list"></div>
-        <div class="row between quick-footer">
-          <p class="muted" id="task-count"></p>
+    <section class="card wide-habits" data-focus-visible data-section="habits">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">Checklist</p>
+          <h3>Today&rsquo;s habits</h3>
+          <p class="muted">Tick the habits you will complete today to keep your loop moving.</p>
         </div>
-      </article>
+        <button id="mark-all" type="button" class="ghost">Mark all done</button>
+      </header>
+      <div id="habit-list" class="list draggable-list"></div>
+      <p class="muted" id="empty-habits">Add habits below to see them here.</p>
+    </section>
+
+    <section class="card" data-focus-visible data-section="wins">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">Quick wins</p>
+          <h3>Quick wins</h3>
+          <p class="muted">Capture small victories to reinforce today&rsquo;s momentum.</p>
+        </div>
+      </header>
+      <form id="task-form" class="stack quick-form">
+        <label class="stacked">Log a one-off win
+          <input id="task-input" type="text" placeholder="Capture a quick win" required />
+        </label>
+        <div class="row end">
+          <button type="submit">Log win</button>
+          <button id="clear-done" type="button" class="ghost danger">Clear wins</button>
+        </div>
+      </form>
+      <div id="task-list" class="list quick-win-list"></div>
+      <div class="row between quick-footer">
+        <p class="muted" id="task-count"></p>
+      </div>
+    </section>
+
+    <section class="card quit-card" data-focus-visible data-section="quit">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">Habits left behind</p>
+          <h3>Quit tracker</h3>
+          <p class="muted">Keep a gentle record of habits you have retired and how long they&rsquo;ve stayed gone.</p>
+        </div>
+        <a href="goals.html" class="ghost">Manage quits</a>
+      </header>
+      <div id="quit-list" class="quit-list"></div>
+      <p class="muted" id="empty-quit">No retired habits yet.</p>
     </section>
 
     <section class="card weekly-card" data-focus-hidden data-section="weekly">
       <header class="card-head">
         <div>
-          <p class="eyebrow">Weekly visuals</p>
+          <p class="eyebrow">Weekly progress</p>
           <h3>Completion by day</h3>
+          <p class="muted">A calm bar view of how the last week unfolded.</p>
         </div>
       </header>
       <div id="weekly-bars" class="bar-grid"></div>
@@ -144,8 +167,9 @@
     <section class="card monthly-card" data-focus-hidden data-section="monthly">
       <header class="card-head">
         <div>
-          <p class="eyebrow">Monthly heatmap</p>
+          <p class="eyebrow">30-day heatmap</p>
           <h3>30-day intensity</h3>
+          <p class="muted">Smooth, single-hue tiles that show how consistently you checked in.</p>
         </div>
       </header>
       <div class="heatmap-wrap">
@@ -161,8 +185,9 @@
     <section class="card history-card" data-focus-hidden data-section="history">
       <header class="card-head">
         <div>
-          <p class="eyebrow">History</p>
+          <p class="eyebrow">Year overview</p>
           <h3>Long view</h3>
+          <p class="muted">Scan the months to spot streaks and months that need attention.</p>
         </div>
         <div class="row">
           <button type="button" id="history-toggle" class="ghost">Expand year view</button>
@@ -183,8 +208,9 @@
     <section class="card journal-card" data-focus-hidden data-section="journal">
       <header class="card-head">
         <div>
-          <p class="eyebrow">Journal &amp; reflection</p>
+          <p class="eyebrow">Notes &amp; reflection</p>
           <h3>Notes</h3>
+          <p class="muted">Capture a few lines so you remember what worked today.</p>
         </div>
       </header>
       <div class="tab-head" role="tablist">
@@ -215,17 +241,6 @@
       </div>
     </section>
 
-    <section class="card" data-focus-hidden data-section="quit">
-      <header class="card-head">
-        <div>
-          <p class="eyebrow">Quit tracker</p>
-          <h3>Habits I've left behind</h3>
-        </div>
-        <a href="goals.html" class="ghost">Manage quits</a>
-      </header>
-      <div id="quit-list" class="quit-list"></div>
-      <p class="muted" id="empty-quit">No retired habits yet.</p>
-    </section>
   </main>
 
   <footer class="muted center">
