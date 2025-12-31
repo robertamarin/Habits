@@ -2,6 +2,11 @@
   const STORAGE_KEY = 'habitFreshV1';
   const PAGE = document.body.dataset.page || 'home';
   const today = () => new Date().toISOString().slice(0, 10);
+  const startOfDayIso = (value = new Date()) => {
+    const d = new Date(value);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  };
   const randomId = () => (crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
   const defaultState = () => ({
@@ -37,8 +42,7 @@
     renderTitle();
     applyTheme();
     applyAccent();
-    if (isHome) renderAll();
-    if (renderGoalsPage) renderGoalsPage();
+    renderAll();
   };
 
   const dom = {
@@ -60,8 +64,6 @@
     summaryGoals: document.getElementById('summary-goals'),
     habitList: document.getElementById('habit-list'),
     emptyHabits: document.getElementById('empty-habits'),
-    completeCount: document.getElementById('complete-count'),
-    habitCount: document.getElementById('habit-count'),
     streak: document.getElementById('streak'),
     momentum: document.getElementById('momentum'),
     streakBar: document.getElementById('streak-bar'),
@@ -79,7 +81,7 @@
     dayPicker: document.getElementById('day-picker'),
     habitSubmit: document.getElementById('habit-submit'),
     habitEditHint: document.getElementById('habit-edit-hint'),
-    library: document.getElementById('library'),
+    libraryList: document.getElementById('library-list'),
     journalForm: document.getElementById('journal-form'),
     journalTitle: document.getElementById('journal-title'),
     journalText: document.getElementById('journal-text'),
@@ -91,7 +93,6 @@
     reset: document.getElementById('reset-data'),
     themeToggle: document.getElementById('theme-toggle'),
     history: document.getElementById('history'),
-    monthLabel: document.getElementById('month-label'),
     yearPicker: document.getElementById('year-picker'),
     settingsButton: document.getElementById('settings-button'),
     settingsButtonTop: document.getElementById('settings-button-top'),
@@ -104,8 +105,7 @@
     bestDay: document.getElementById('best-day'),
     quitList: document.getElementById('quit-list'),
     emptyQuit: document.getElementById('empty-quit'),
-    habitTotal: document.getElementById('habit-total'),
-    goalTotal: document.getElementById('goal-total'),
+    calendarMonth: document.getElementById('calendar-month'),
     dayDetail: document.getElementById('day-detail'),
     detailDate: document.getElementById('detail-date'),
     dayBreakdown: document.querySelector('.day-breakdown'),
@@ -117,7 +117,7 @@
     focusMode: document.getElementById('focus-mode'),
     toolbar: document.querySelector('.toolbar'),
     toolbarToggle: document.getElementById('toolbar-toggle'),
-    mobileMenu: document.getElementById('mobile-menu'),
+    navToggle: document.getElementById('nav-toggle'),
     momentumBar: document.querySelector('.meter-bar span'),
     exportData: document.getElementById('export-data'),
     exportCsv: document.getElementById('export-csv'),
@@ -125,24 +125,19 @@
     importFile: document.getElementById('import-file'),
     journalSaved: document.getElementById('journal-saved'),
     dreamSaved: document.getElementById('dream-saved'),
-    // Goals page
     goalForm: document.getElementById('goal-form'),
     goalInput: document.getElementById('goal-input'),
     goalList: document.getElementById('goal-list'),
     quitForm: document.getElementById('quit-form'),
     quitName: document.getElementById('quit-name'),
     quitDate: document.getElementById('quit-date'),
-    quitLibrary: document.getElementById('quit-library'),
     quitCard: document.querySelector('.quit-card'),
     quitCta: document.getElementById('quit-cta'),
     journalCard: document.querySelector('.journal-card'),
     notesCta: document.getElementById('notes-cta')
   };
 
-  const isHome = PAGE === 'home';
-  const isGoals = PAGE === 'goals';
   let editingHabitId = null;
-  let renderGoalsPage = null;
   let lastProgressPercent = 0;
   let historyExpanded = false;
 
@@ -258,7 +253,6 @@
     const date = today();
     const day = getDay(date);
     const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
-    dom.habitCount.textContent = todayHabits.length;
 
     dom.habitList.innerHTML = '';
     if (!todayHabits.length) {
@@ -450,14 +444,12 @@
   };
 
   const renderLibrary = () => {
-    if (!dom.library) return;
-    dom.library.innerHTML = '';
+    if (!dom.libraryList) return;
+    dom.libraryList.innerHTML = '';
     if (!state.habits.length) {
-      dom.library.innerHTML = '<div class="empty">No habits yet</div>';
-      if (dom.habitTotal) dom.habitTotal.textContent = '0';
+      dom.libraryList.innerHTML = '<div class="empty">No habits yet</div>';
       return;
     }
-    if (dom.habitTotal) dom.habitTotal.textContent = String(state.habits.length);
 
     state.habits.forEach((habit) => {
       const item = document.createElement('div');
@@ -495,7 +487,7 @@
           dom.dayPicker.querySelectorAll('input').forEach((i) => (i.checked = false));
         }
         if (dom.habitIcon) dom.habitIcon.value = habit.icon || '';
-        if (dom.habitColor) dom.habitColor.value = habit.color || '#4a7ed5';
+        if (dom.habitColor) dom.habitColor.value = habit.color || '#5563ff';
         if (dom.habitSubmit) dom.habitSubmit.textContent = 'Update habit';
         if (dom.habitEditHint) dom.habitEditHint.textContent = 'Editing existing habit';
       });
@@ -514,7 +506,7 @@
           if (dom.habitEditHint) dom.habitEditHint.textContent = 'Add to today\'s checklist';
           if (dom.habitInput) dom.habitInput.value = '';
           if (dom.habitIcon) dom.habitIcon.value = '';
-          if (dom.habitColor) dom.habitColor.value = '#4a7ed5';
+          if (dom.habitColor) dom.habitColor.value = '#5563ff';
         }
         saveState();
         renderChecklist();
@@ -525,7 +517,7 @@
 
       actions.append(edit, remove);
       item.append(block, actions);
-      dom.library.append(item);
+      dom.libraryList.append(item);
     });
     renderDashboardSummary();
   };
@@ -539,8 +531,8 @@
     dom.journalList.innerHTML = '';
     if (!day.journal.length) {
       dom.journalList.innerHTML = '<div class="empty">No entries yet</div>';
-      if (dom.notesCta) dom.notesCta.classList.remove('hidden');
-      if (dom.journalCard) dom.journalCard.classList.add('collapsed');
+      if (dom.notesCta) dom.notesCta.classList.add('hidden');
+      if (dom.journalCard) dom.journalCard.classList.remove('collapsed');
       return;
     }
     if (dom.notesCta) dom.notesCta.classList.add('hidden');
@@ -693,8 +685,9 @@
   const dayCompletion = (date) => {
     const day = state.days[date];
     const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
-    const total = todayHabits.length || 1;
+    const total = todayHabits.length;
     const done = day ? todayHabits.filter((h) => day.habits && day.habits[h.id]).length : 0;
+    if (!total) return 0;
     return Math.round((done / total) * 100);
   };
 
@@ -709,17 +702,16 @@
     const date = today();
     const day = getDay(date);
     const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
-    const total = todayHabits.length || 1;
+    const total = todayHabits.length;
     const done = todayHabits.filter((h) => day.habits[h.id]).length;
-    const percent = Math.round((done / total) * 100);
-    dom.completeCount.textContent = done;
+    const percent = total ? Math.round((done / total) * 100) : 0;
     if (dom.progressValue) dom.progressValue.textContent = `${percent}%`;
     if (dom.ringSubtext) dom.ringSubtext.textContent = `${done} of ${todayHabits.length} habits`;
     if (dom.progressRing) dom.progressRing.setAttribute('title', `${percent}% complete (${done}/${todayHabits.length})`);
     const circumference = 440;
     const offset = circumference - (percent / 100) * circumference;
     dom.progressFill.style.strokeDashoffset = offset;
-    dom.progressFill.setAttribute('stroke', 'url(#ringGradient)');
+    dom.progressFill.style.stroke = 'var(--accent)';
     if (fromAction && percent !== lastProgressPercent) {
       dom.progressFill.classList.add('wins-pulse');
       setTimeout(() => dom.progressFill && dom.progressFill.classList.remove('wins-pulse'), 300);
@@ -786,7 +778,7 @@
         const bar = document.createElement('span');
         const height = Math.max(6, (value / 100) * 32);
         bar.style.height = `${height}px`;
-        const tone = value >= 80 ? 'var(--success)' : value >= 50 ? 'var(--accent)' : 'var(--warning)';
+        const tone = value >= 80 ? 'var(--accent-strong)' : value >= 50 ? 'var(--accent)' : '#ef6c63';
         bar.style.background = tone;
         bar.title = `${formatDate(chronDates[idx], { weekday: 'short', month: 'short', day: 'numeric' })}: ${value}%`;
         dom.weekTrend.append(bar);
@@ -796,6 +788,10 @@
 
   const renderWeekly = () => {
     if (!dom.weeklyBars) return;
+    if (!state.habits.length) {
+      dom.weeklyBars.innerHTML = '<div class="empty">Add habits to see weekly progress.</div>';
+      return;
+    }
     const todayDate = new Date();
     const start = new Date(todayDate);
     const offset = (todayDate.getDay() + 6) % 7; // Monday start
@@ -848,28 +844,53 @@
   const renderMonthly = () => {
     if (!dom.monthlyStrip) return;
     dom.monthlyStrip.innerHTML = '';
-    const dates = Array.from({ length: 30 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (29 - i));
-      return d.toISOString().slice(0, 10);
-    });
-    dates.forEach((date) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const start = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(now);
+    if (dom.calendarMonth) dom.calendarMonth.textContent = monthLabel;
+    const leadingBlanks = start.getDay();
+    for (let i = 0; i < leadingBlanks; i++) {
+      const spacer = document.createElement('div');
+      spacer.className = 'calendar-empty';
+      spacer.setAttribute('aria-hidden', 'true');
+      dom.monthlyStrip.append(spacer);
+    }
+
+    for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+      const dateObj = new Date(year, month, dayNum);
+      const date = dateObj.toISOString().slice(0, 10);
       const percent = dayCompletion(date);
       const todaysHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
       const hasHabits = todaysHabits.length > 0;
-      const day = state.days[date];
-      const done = todaysHabits.filter((h) => day?.habits?.[h.id]).length;
-      const wins = (day?.tasks || []).length;
-      const hasData = hasActivity(day);
+      const dayState = state.days[date];
+      const done = todaysHabits.filter((h) => dayState?.habits?.[h.id]).length;
+      const wins = (dayState?.tasks || []).length;
+      const hasData = hasActivity(dayState);
       const level = completionLevel(percent, hasHabits, hasData);
+
       const button = document.createElement('button');
+      button.type = 'button';
       button.dataset.level = String(level);
-      button.textContent = new Date(date).getDate();
+      button.textContent = String(dayNum);
       if (date === today()) button.classList.add('today');
-      button.title = `${formatDate(date, { month: 'short', day: 'numeric' })}: ${done}/${todaysHabits.length} habits, ${wins} wins`;
+      const habitLabel = hasHabits ? `${done}/${todaysHabits.length} habits` : 'No habits scheduled';
+      button.title = `${formatDate(date, { month: 'short', day: 'numeric' })}: ${habitLabel} · ${wins} wins`;
+      button.setAttribute('aria-label', `${formatDate(date, { weekday: 'long', month: 'long', day: 'numeric' })}: ${habitLabel}`);
       button.addEventListener('click', () => openDayDetail(date));
       dom.monthlyStrip.append(button);
-    });
+    }
+
+    const totalCells = leadingBlanks + daysInMonth;
+    const trailing = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    for (let i = 0; i < trailing; i++) {
+      const spacer = document.createElement('div');
+      spacer.className = 'calendar-empty';
+      spacer.setAttribute('aria-hidden', 'true');
+      dom.monthlyStrip.append(spacer);
+    }
   };
 
   const renderHistory = () => {
@@ -1084,12 +1105,12 @@
     if (!dom.quitList) return;
     dom.quitList.innerHTML = '';
     if (!state.quits.length) {
-      dom.emptyQuit.classList.remove('hidden');
+      if (dom.emptyQuit) dom.emptyQuit.classList.remove('hidden');
       if (dom.quitCard) dom.quitCard.classList.add('collapsed');
       if (dom.quitCta) dom.quitCta.classList.remove('hidden');
       return;
     }
-    dom.emptyQuit.classList.add('hidden');
+    if (dom.emptyQuit) dom.emptyQuit.classList.add('hidden');
     if (dom.quitCard) dom.quitCard.classList.remove('collapsed');
     if (dom.quitCta) dom.quitCta.classList.add('hidden');
     state.quits.forEach((quit) => {
@@ -1120,7 +1141,7 @@
       reset.textContent = 'Reset';
       reset.addEventListener('click', () => {
         if (!confirm('Reset this quit timer to today?')) return;
-        quit.date = new Date().toISOString();
+        quit.date = startOfDayIso();
         saveState();
         renderQuitList();
       });
@@ -1131,9 +1152,54 @@
     updateQuitTimers();
   };
 
-  const renderTotals = () => {
-    if (dom.goalTotal) dom.goalTotal.textContent = String(state.goals.length);
-    if (dom.habitTotal) dom.habitTotal.textContent = String(state.habits.length);
+  const renderGoals = () => {
+    if (!dom.goalList) return;
+    dom.goalList.innerHTML = '';
+    if (!state.goals.length) {
+      dom.goalList.innerHTML = '<div class="empty">Add your big targets for 2026.</div>';
+      renderDashboardSummary();
+      return;
+    }
+    state.goals
+      .slice()
+      .sort((a, b) => b.created - a.created)
+      .forEach((goal) => {
+        const row = document.createElement('div');
+        row.className = 'goal-row';
+        const title = document.createElement('strong');
+        title.textContent = goal.title;
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const createdDate = goal.created ? new Date(goal.created) : new Date();
+        meta.textContent = formatDate(createdDate.toISOString().slice(0, 10));
+        const actions = document.createElement('div');
+        actions.className = 'row';
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'ghost';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => {
+          const next = prompt('Update your goal', goal.title);
+          if (!next || !next.trim()) return;
+          goal.title = next.trim();
+          saveState();
+          renderGoals();
+          renderDashboardSummary();
+        });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'ghost';
+        remove.textContent = 'Delete';
+        remove.addEventListener('click', () => {
+          state.goals = state.goals.filter((g) => g.id !== goal.id);
+          saveState();
+          renderGoals();
+          renderDashboardSummary();
+        });
+        actions.append(edit, remove);
+        row.append(title, meta, actions);
+        dom.goalList.append(row);
+      });
     renderDashboardSummary();
   };
 
@@ -1155,6 +1221,10 @@
     const timers = document.querySelectorAll('[data-timer]');
     timers.forEach((node) => {
       const start = new Date(node.dataset.timer);
+      if (Number.isNaN(start.getTime())) {
+        node.textContent = '0d 0h 0m 0s';
+        return;
+      }
       const diff = Date.now() - start.getTime();
       const seconds = Math.max(0, Math.floor(diff / 1000));
       const days = Math.floor(seconds / 86400);
@@ -1172,7 +1242,6 @@
   };
 
   const renderAll = () => {
-    if (!isHome) return;
     if (dom.todayLabel) dom.todayLabel.textContent = formatDate(today());
     renderTitle();
     applyTheme();
@@ -1180,13 +1249,14 @@
     applyHiddenSections();
     applyFocusMode();
     syncHiddenSectionToggles();
+    if (dom.quitDate) dom.quitDate.value = today();
     renderChecklist();
     renderTasks();
     renderLibrary();
     renderJournal();
     renderDreams();
     renderQuitList();
-    renderTotals();
+    renderGoals();
     renderHistory();
     renderProgress();
   };
@@ -1205,7 +1275,7 @@
       const cadence = dom.habitCadence.value;
       const days = Array.from(dom.dayPicker.querySelectorAll('input:checked')).map((d) => Number(d.value));
       const icon = dom.habitIcon ? dom.habitIcon.value : '';
-      const color = dom.habitColor ? dom.habitColor.value : '#4a7ed5';
+      const color = dom.habitColor ? dom.habitColor.value : '#5563ff';
       if (editingHabitId) {
         const existing = state.habits.find((h) => h.id === editingHabitId);
         if (existing) {
@@ -1222,7 +1292,7 @@
       dom.habitInput.value = '';
       dom.dayPicker.querySelectorAll('input').forEach((i) => (i.checked = false));
       if (dom.habitIcon) dom.habitIcon.value = '';
-      if (dom.habitColor) dom.habitColor.value = '#4a7ed5';
+      if (dom.habitColor) dom.habitColor.value = '#5563ff';
       editingHabitId = null;
       if (dom.habitSubmit) dom.habitSubmit.textContent = 'Add habit';
       if (dom.habitEditHint) dom.habitEditHint.textContent = 'Add to today\'s checklist';
@@ -1241,8 +1311,7 @@
       renderTitle();
       applyTheme();
       applyAccent();
-      if (isHome) renderAll();
-      if (renderGoalsPage) renderGoalsPage();
+      renderAll();
     });
   }
 
@@ -1309,7 +1378,6 @@
     dom.toolbar.classList.toggle('is-open');
   };
   if (dom.toolbarToggle) dom.toolbarToggle.addEventListener('click', toggleToolbar);
-  if (dom.mobileMenu) dom.mobileMenu.addEventListener('click', toggleToolbar);
 
   if (dom.exportData) {
     dom.exportData.addEventListener('click', () => {
@@ -1360,7 +1428,7 @@
       const id = idIdx === -1 ? `csv-${cols[nameIdx]}` : (cols[idIdx] || '').replace(/"/g, '');
       const name = (cols[nameIdx] || '').replace(/^"|"$/g, '').replace(/""/g, '"');
       const done = Number(cols[doneIdx]) === 1;
-      if (!habitsById[id]) habitsById[id] = { id, name, cadence: 'daily', days: [], icon: '', color: '#4a7ed5' };
+      if (!habitsById[id]) habitsById[id] = { id, name, cadence: 'daily', days: [], icon: '', color: '#5563ff' };
       if (!days[date]) days[date] = { habits: {}, tasks: [], journal: [], dreams: [] };
       days[date].habits[id] = done;
     });
@@ -1402,291 +1470,190 @@
   }
 
   // Events: Home page
-  if (isHome) {
-    const navLinks = document.querySelectorAll('.bottom-nav .nav-pill');
-    const sections = ['dashboard', 'habits', 'stats', 'journal'];
-    const setActive = (id) => {
-      navLinks.forEach((link) => link.classList.toggle('active', link.getAttribute('href')?.includes(id)));
-    };
+  const navLinks = Array.from(document.querySelectorAll('.nav-link'));
+  const navTargets = navLinks
+    .map((link) => (link.getAttribute('href') || '').replace('#', ''))
+    .filter(Boolean);
+  const setActiveNav = (id) => {
+    navLinks.forEach((link) => {
+      const target = (link.getAttribute('href') || '').replace('#', '');
+      link.classList.toggle('active', target === id);
+    });
+  };
+  if (navLinks.length) {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) setActive(`#${entry.target.id}`);
+        if (entry.isIntersecting) setActiveNav(entry.target.id);
       });
-    }, { threshold: 0.4 });
-    sections.forEach((id) => {
+    }, { threshold: 0.35 });
+    navTargets.forEach((id) => {
       const node = document.getElementById(id);
       if (node) observer.observe(node);
     });
     navLinks.forEach((link) => {
       link.addEventListener('click', () => {
-        const hash = link.getAttribute('href') || '';
-        if (hash.startsWith('#')) setActive(hash);
+        const nav = document.querySelector('.primary-nav');
+        nav?.classList.remove('open');
+        if (dom.navToggle) dom.navToggle.setAttribute('aria-expanded', 'false');
+        const target = (link.getAttribute('href') || '').replace('#', '');
+        if (target) setActiveNav(target);
       });
     });
-
-    if (dom.quitCta && dom.quitCard) {
-      dom.quitCta.addEventListener('click', () => {
-        dom.quitCard.classList.remove('collapsed');
-        dom.quitCta.classList.add('hidden');
-      });
-    }
-
-    if (dom.notesCta && dom.journalCard) {
-      dom.notesCta.addEventListener('click', () => {
-        dom.journalCard.classList.remove('collapsed');
-        dom.notesCta.classList.add('hidden');
-        if (dom.journalTitle) dom.journalTitle.focus();
-      });
-    }
-
-    if (dom.markAll) {
-      dom.markAll.addEventListener('click', () => {
-        const day = getDay(today());
-        state.habits.forEach((h) => {
-          if (shouldShowHabitToday(h, today())) {
-            day.habits[h.id] = true;
-          }
-        });
-        saveState();
-        renderChecklist();
-        renderHistory();
-      });
-    }
-
-    document.querySelectorAll('.tab').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        const target = tab.dataset.tab;
-        document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab));
-        document.querySelectorAll('.tab-body').forEach((panel) => {
-          panel.classList.toggle('hidden', panel.dataset.tabPanel !== target);
-        });
-      });
+  }
+  if (dom.navToggle) {
+    dom.navToggle.addEventListener('click', () => {
+      const nav = document.querySelector('.primary-nav');
+      const open = nav?.classList.toggle('open');
+      dom.navToggle.setAttribute('aria-expanded', String(!!open));
     });
-
-    if (dom.taskForm) {
-      dom.taskForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-        const title = dom.taskInput.value.trim();
-        if (!title) return;
-        const day = getDay(today());
-        day.tasks.push({ id: randomId(), title, created: Date.now() });
-        dom.taskInput.value = '';
-        saveState();
-        renderTasks();
-        renderHistory();
-      });
-    }
-
-    if (dom.clearDone) {
-      dom.clearDone.addEventListener('click', () => {
-        const day = getDay(today());
-        day.tasks = [];
-        saveState();
-        renderTasks();
-        renderHistory();
-      });
-    }
-
-    if (dom.journalForm) {
-      dom.journalForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-        const text = dom.journalText.value.trim();
-        if (!text) return;
-        const entry = {
-          id: randomId(),
-          title: dom.journalTitle.value.trim(),
-          text,
-          created: Date.now()
-        };
-        const day = getDay(today());
-        day.journal.push(entry);
-        dom.journalTitle.value = '';
-        dom.journalText.value = '';
-        if (dom.journalSaved) dom.journalSaved.textContent = 'Saved';
-        saveState();
-        renderJournal();
-        renderHistory();
-      });
-    }
-
-    if (dom.dreamForm) {
-      dom.dreamForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-        const text = dom.dreamText.value.trim();
-        if (!text) return;
-        const entry = {
-          id: randomId(),
-          title: dom.dreamTitle.value.trim(),
-          text,
-          created: Date.now()
-        };
-        const day = getDay(today());
-        day.dreams.push(entry);
-        dom.dreamTitle.value = '';
-        dom.dreamText.value = '';
-        if (dom.dreamSaved) dom.dreamSaved.textContent = 'Saved';
-        saveState();
-        renderDreams();
-        renderHistory();
-      });
-    }
-
-    if (dom.yearPicker) {
-      dom.yearPicker.addEventListener('change', () => changeYear(Number(dom.yearPicker.value)));
-    }
-    if (dom.historyMode) {
-      dom.historyMode.addEventListener('change', renderHistory);
-    }
-    if (dom.historyToggle) {
-      dom.historyToggle.addEventListener('click', () => {
-        historyExpanded = !historyExpanded;
-        renderHistory();
-      });
-    }
-    if (dom.dayDetail && document.getElementById('close-detail')) {
-      document.getElementById('close-detail').addEventListener('click', () => dom.dayDetail.close());
-    }
-
-    renderAll();
-    setInterval(updateQuitTimers, 1000);
   }
 
-  // Events: Goals page
-  if (isGoals) {
-    if (dom.goalForm) {
-      dom.goalForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const text = dom.goalInput.value.trim();
-        if (!text) return;
-        state.goals.push({ id: randomId(), title: text, created: Date.now() });
-        dom.goalInput.value = '';
-        saveState();
-        renderGoals();
+  if (dom.notesCta && dom.journalCard) {
+    dom.notesCta.addEventListener('click', () => {
+      dom.journalCard.classList.remove('collapsed');
+      dom.notesCta.classList.add('hidden');
+      if (dom.journalTitle) dom.journalTitle.focus();
+    });
+  }
+
+  if (dom.markAll) {
+    dom.markAll.addEventListener('click', () => {
+      const day = getDay(today());
+      state.habits.forEach((h) => {
+        if (shouldShowHabitToday(h, today())) {
+          day.habits[h.id] = true;
+        }
       });
-    }
+      saveState();
+      renderChecklist();
+      renderHistory();
+    });
+  }
 
-    if (dom.quitForm) {
-      dom.quitForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = dom.quitName.value.trim();
-        const date = dom.quitDate.value || today();
-        if (!name) return;
-        const storedDate = date ? new Date(date).toISOString() : new Date().toISOString();
-        state.quits.push({ id: randomId(), name, date: storedDate });
-        dom.quitName.value = '';
-        dom.quitDate.value = today();
-        saveState();
-        renderQuitLibrary();
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab));
+      document.querySelectorAll('.tab-body').forEach((panel) => {
+        panel.classList.toggle('hidden', panel.dataset.tabPanel !== target);
       });
-    }
+    });
+  });
 
-    const renderGoals = () => {
-      if (!dom.goalList) return;
-      dom.goalList.innerHTML = '';
-      renderTotals();
-      if (!state.goals.length) {
-        dom.goalList.innerHTML = '<div class="empty">Add your big targets for 2026.</div>';
-        return;
-      }
-      state.goals
-        .slice()
-        .sort((a, b) => b.created - a.created)
-        .forEach((goal) => {
-          const row = document.createElement('div');
-          row.className = 'goal-row';
-          const title = document.createElement('strong');
-          title.textContent = goal.title;
-          const meta = document.createElement('div');
-          meta.className = 'meta';
-          meta.textContent = formatDate(new Date(goal.created).toISOString().slice(0, 10));
-          const actions = document.createElement('div');
-          actions.className = 'row';
-          const edit = document.createElement('button');
-          edit.type = 'button';
-          edit.className = 'ghost';
-          edit.textContent = 'Edit';
-          edit.addEventListener('click', () => {
-            const next = prompt('Update your goal', goal.title);
-            if (!next || !next.trim()) return;
-            goal.title = next.trim();
-            saveState();
-            renderGoals();
-          });
-          const remove = document.createElement('button');
-          remove.type = 'button';
-          remove.className = 'ghost';
-          remove.textContent = 'Delete';
-          remove.addEventListener('click', () => {
-            state.goals = state.goals.filter((g) => g.id !== goal.id);
-            saveState();
-            renderGoals();
-          });
-          actions.append(edit, remove);
-          row.append(title, meta, actions);
-          dom.goalList.append(row);
-        });
-    };
+  if (dom.taskForm) {
+    dom.taskForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const title = dom.taskInput.value.trim();
+      if (!title) return;
+      const day = getDay(today());
+      day.tasks.push({ id: randomId(), title, created: Date.now() });
+      dom.taskInput.value = '';
+      saveState();
+      renderTasks();
+      renderHistory();
+    });
+  }
 
-    const renderQuitLibrary = () => {
-      if (!dom.quitLibrary) return;
-      dom.quitLibrary.innerHTML = '';
-      if (!state.quits.length) {
-        dom.quitLibrary.innerHTML = '<div class="empty">List habits you are quitting and log the date.</div>';
-        return;
-      }
-      state.quits.forEach((quit) => {
-        const row = document.createElement('div');
-        row.className = 'goal-row';
-        const name = document.createElement('strong');
-        name.textContent = quit.name;
-        const meta = document.createElement('div');
-        meta.className = 'meta';
-        meta.textContent = `Quit on ${formatDate(quit.date, { month: 'short', day: 'numeric', year: 'numeric' })}`;
-        const actions = document.createElement('div');
-        actions.className = 'row';
-        const reset = document.createElement('button');
-        reset.type = 'button';
-        reset.className = 'ghost';
-        reset.textContent = 'Reset';
-        reset.addEventListener('click', () => {
-          if (!confirm('Reset this quit timer to today?')) return;
-          quit.date = today();
-          saveState();
-          renderQuitLibrary();
-          renderQuitList();
-        });
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'ghost';
-        remove.textContent = 'Delete';
-        remove.addEventListener('click', () => {
-          state.quits = state.quits.filter((q) => q.id !== quit.id);
-          saveState();
-          renderQuitLibrary();
-          renderQuitList();
-        });
-        actions.append(reset, remove);
-        row.append(name, meta, actions);
-        dom.quitLibrary.append(row);
-      });
-    };
+  if (dom.clearDone) {
+    dom.clearDone.addEventListener('click', () => {
+      const day = getDay(today());
+      day.tasks = [];
+      saveState();
+      renderTasks();
+      renderHistory();
+    });
+  }
 
-    renderGoalsPage = () => {
-      renderTitle();
-      applyTheme();
-      applyAccent();
-      applyHiddenSections();
-      applyFocusMode();
-      syncHiddenSectionToggles();
-      if (dom.quitDate) dom.quitDate.value = today();
-      renderLibrary();
-      renderTotals();
+  if (dom.goalForm) {
+    dom.goalForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = dom.goalInput.value.trim();
+      if (!text) return;
+      state.goals.push({ id: randomId(), title: text, created: Date.now() });
+      dom.goalInput.value = '';
+      saveState();
       renderGoals();
-      renderQuitLibrary();
-    };
-
-    renderGoalsPage();
+      renderDashboardSummary();
+    });
   }
+
+  if (dom.quitForm) {
+    dom.quitForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = dom.quitName.value.trim();
+      const date = dom.quitDate.value || today();
+      if (!name) return;
+      const storedDate = startOfDayIso(date);
+      state.quits.push({ id: randomId(), name, date: storedDate });
+      dom.quitName.value = '';
+      dom.quitDate.value = today();
+      saveState();
+      renderQuitList();
+    });
+  }
+
+  if (dom.journalForm) {
+    dom.journalForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const text = dom.journalText.value.trim();
+      if (!text) return;
+      const entry = {
+        id: randomId(),
+        title: dom.journalTitle.value.trim(),
+        text,
+        created: Date.now()
+      };
+      const day = getDay(today());
+      day.journal.push(entry);
+      dom.journalTitle.value = '';
+      dom.journalText.value = '';
+      if (dom.journalSaved) dom.journalSaved.textContent = 'Saved';
+      saveState();
+      renderJournal();
+      renderHistory();
+    });
+  }
+
+  if (dom.dreamForm) {
+    dom.dreamForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const text = dom.dreamText.value.trim();
+      if (!text) return;
+      const entry = {
+        id: randomId(),
+        title: dom.dreamTitle.value.trim(),
+        text,
+        created: Date.now()
+      };
+      const day = getDay(today());
+      day.dreams.push(entry);
+      dom.dreamTitle.value = '';
+      dom.dreamText.value = '';
+      if (dom.dreamSaved) dom.dreamSaved.textContent = 'Saved';
+      saveState();
+      renderDreams();
+      renderHistory();
+    });
+  }
+
+  if (dom.yearPicker) {
+    dom.yearPicker.addEventListener('change', () => changeYear(Number(dom.yearPicker.value)));
+  }
+  if (dom.historyMode) {
+    dom.historyMode.addEventListener('change', renderHistory);
+  }
+  if (dom.historyToggle) {
+    dom.historyToggle.addEventListener('click', () => {
+      historyExpanded = !historyExpanded;
+      renderHistory();
+    });
+  }
+  if (dom.dayDetail && document.getElementById('close-detail')) {
+    document.getElementById('close-detail').addEventListener('click', () => dom.dayDetail.close());
+  }
+
+  renderAll();
+  setInterval(updateQuitTimers, 1000);
 
   window.addEventListener('storage', (event) => {
     if (event.key !== STORAGE_KEY) return;

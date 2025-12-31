@@ -11,90 +11,60 @@
 </head>
 <body data-page="home">
   <div class="app-shell">
-    <aside class="sidebar" aria-label="Primary navigation">
-      <div class="sidebar-logo">
-        <div class="dot mini"></div>
+    <header class="app-header" id="dashboard">
+      <div class="brand compact">
+        <div class="dot mini" aria-hidden="true"></div>
+        <div>
+          <p class="eyebrow">Robert's 2026</p>
+          <h1 id="app-title">Habit Engine</h1>
+        </div>
       </div>
-      <nav class="sidebar-nav">
-        <a href="#dashboard" class="nav-pill active" aria-label="Dashboard">
-          <span class="icon">🏠</span>
-          <span class="nav-label">Dashboard</span>
-        </a>
-        <a href="#habits" class="nav-pill" aria-label="Habits">
-          <span class="icon">🗒️</span>
-          <span class="nav-label">Habits</span>
-        </a>
-        <a href="#stats" class="nav-pill" aria-label="Stats">
-          <span class="icon">📊</span>
-          <span class="nav-label">Stats</span>
-        </a>
-        <a href="#journal" class="nav-pill" aria-label="Journal">
-          <span class="icon">📔</span>
-          <span class="nav-label">Journal</span>
-        </a>
-        <a href="goals.html" class="nav-pill" aria-label="Goals">
-          <span class="icon">🎯</span>
-          <span class="nav-label">Goals</span>
-        </a>
-        <button id="settings-button" type="button" class="nav-pill ghost" aria-label="Settings">
-          <span class="icon">⚙️</span>
-          <span class="nav-label">Settings</span>
-        </button>
-      </nav>
-    </aside>
+      <div class="nav-wrap">
+        <nav class="primary-nav" aria-label="Primary navigation">
+          <a href="#dashboard" class="nav-link active" aria-label="Dashboard">Dashboard</a>
+          <a href="#habits" class="nav-link" aria-label="Checklist">Checklist</a>
+          <a href="#progress" class="nav-link" aria-label="Progress">Progress</a>
+          <a href="#goals" class="nav-link" aria-label="Goals and quitting">Goals</a>
+          <a href="#library" class="nav-link" aria-label="Library and cadence">Library</a>
+          <a href="#journal" class="nav-link" aria-label="Journal">Journal</a>
+        </nav>
+        <button type="button" class="icon-button nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
+      </div>
+      <div class="top-actions">
+        <label class="switch focus-toggle pill">
+          <input type="checkbox" id="focus-mode" aria-label="Toggle focus mode" />
+          <span>Focus mode</span>
+        </label>
+        <button id="settings-button-top" type="button" class="ghost pill" aria-label="Open settings">Settings</button>
+      </div>
+    </header>
 
-    <div class="content-area">
-      <header class="top topbar" id="dashboard">
-        <div class="brand compact">
-          <div class="dot mini"></div>
+    <div class="toolbar" role="group" aria-label="Data actions">
+      <input type="file" id="import-file" accept=".json,.csv" class="hidden" />
+      <button type="button" id="import-data" class="ghost" aria-label="Import data">Import</button>
+      <button type="button" id="export-data" class="ghost" aria-label="Export JSON">JSON</button>
+      <button type="button" id="export-csv" class="ghost" aria-label="Export CSV">CSV</button>
+    </div>
+
+    <main class="content-area">
+      <section class="card topline span-4 progress-card" id="progress">
+        <div class="summary-head">
           <div>
-            <p class="eyebrow">Robert's 2026</p>
-            <h1 id="app-title">Habit Engine</h1>
-          </div>
-        </div>
-        <div class="top-actions">
-          <label class="switch focus-toggle pill">
-            <input type="checkbox" id="focus-mode" />
-            <span>Focus mode</span>
-          </label>
-          <a href="goals.html" class="ghost pill">Goals &amp; quitting</a>
-          <button id="settings-button-top" type="button" class="ghost pill">Settings</button>
-          <button type="button" class="icon-button mobile-only" id="toolbar-toggle" aria-label="More actions">⋯</button>
-        </div>
-      </header>
-
-      <div class="toolbar" role="group" aria-label="Data actions">
-        <input type="file" id="import-file" accept=".json,.csv" class="hidden" />
-        <button type="button" id="import-data" class="ghost">Import</button>
-        <button type="button" id="export-data" class="ghost">JSON</button>
-        <button type="button" id="export-csv" class="ghost">CSV</button>
-      </div>
-
-      <main class="dashboard-grid">
-        <section class="card topline span-4 progress-card">
-          <div class="summary-head">
-            <div>
-              <p class="eyebrow">Today</p>
-              <h2 id="today-label"></h2>
-              <p class="muted">Quick glance at progress, streaks, and momentum.</p>
+            <p class="eyebrow">Today</p>
+            <h2 id="today-label"></h2>
+            <p class="muted">Quick glance at progress, streaks, and momentum.</p>
             </div>
             <div class="micro-trend" id="week-trend" aria-label="Past 7 days completion"></div>
           </div>
           <div class="meter-grid">
             <div class="circle-stat">
               <div class="circle-shell compact">
-                <svg id="progress-ring" viewBox="0 0 160 160">
-                  <defs>
-                    <linearGradient id="ringGradient" x1="0%" x2="100%" y1="0%" y2="0%">
-                      <stop offset="0%" stop-color="var(--accent-strong)" />
-                      <stop offset="100%" stop-color="var(--accent-soft)" />
-                    </linearGradient>
-                  </defs>
+                <svg id="progress-ring" viewBox="0 0 160 160" aria-label="Daily completion ring">
                   <circle class="ring-bg" cx="80" cy="80" r="70" />
                   <circle class="ring-fill" cx="80" cy="80" r="70" />
                 </svg>
                 <div class="ring-center">
-                  <div class="ring-number" id="progress-value">0%</div>
+                  <div class="ring-number" id="progress-value" aria-live="polite">0%</div>
                 </div>
               </div>
               <p class="circle-label">Daily completion</p>
@@ -102,12 +72,12 @@
             </div>
             <div class="circle-stat">
               <div class="circle-shell compact streak-shell" id="streak-bar">
-                <svg id="streak-ring" viewBox="0 0 160 160">
+                <svg id="streak-ring" viewBox="0 0 160 160" aria-label="Current streak ring">
                   <circle class="ring-bg" cx="80" cy="80" r="70" />
                   <circle class="ring-fill streak-fill" cx="80" cy="80" r="70" />
                 </svg>
                 <div class="ring-center">
-                  <div class="ring-number" id="streak">0d</div>
+                  <div class="ring-number" id="streak" aria-live="polite">0d</div>
                 </div>
               </div>
               <p class="circle-label">Current streak</p>
@@ -156,27 +126,36 @@
               <div>
                 <p class="eyebrow">Weekly progress</p>
                 <h3>Completion by day</h3>
-                <p class="muted">Horizontal bars for quick comparisons.</p>
+                <p class="muted">Clean bars with consistent spacing and labels.</p>
               </div>
             </header>
-            <div id="weekly-bars" class="weekly-list"></div>
+            <div id="weekly-bars" class="weekly-list" role="img" aria-label="Weekly completion chart"></div>
+            <div class="chart-axes" aria-hidden="true">
+              <span>0%</span><span>50%</span><span>100%</span>
+            </div>
           </section>
 
           <section class="card monthly-card" data-focus-hidden data-section="monthly">
             <header class="card-head">
               <div>
-                <p class="eyebrow">30-day heatmap</p>
-                <h3>30-day intensity</h3>
-                <p class="muted">Compact squares, cool-to-warm gradient.</p>
+                <p class="eyebrow">Monthly heatmap</p>
+                <h3>Calendar intensity</h3>
+                <p class="muted">Full calendar grid with daily completion squares.</p>
               </div>
             </header>
             <div class="heatmap-wrap">
-              <div id="monthly-strip" class="heatmap-grid"></div>
-              <div class="legend" aria-label="Heatmap legend">
-                <span>Cool</span>
-                <span class="legend-bar"><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i></span>
-                <span>Warm</span>
+              <div class="calendar-head">
+                <div class="calendar-month" id="calendar-month" aria-live="polite"></div>
+                <div class="calendar-legend" aria-label="Heatmap legend">
+                  <span>Low</span>
+                  <div class="legend-bar"><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i></div>
+                  <span>High</span>
+                </div>
               </div>
+              <div class="weekday-labels" aria-hidden="true">
+                <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+              </div>
+              <div id="monthly-strip" class="calendar-grid" role="grid" aria-label="Calendar heatmap"></div>
             </div>
           </section>
         </div>
@@ -191,8 +170,8 @@
               </div>
             </header>
             <form id="task-form" class="quick-form" aria-label="Quick win entry">
-              <input id="task-input" type="text" placeholder="Log a quick win" required />
-              <button type="submit" class="inline-button">Add</button>
+              <input id="task-input" type="text" placeholder="Log a quick win" required aria-label="Quick win text" />
+              <button type="submit" class="primary">Add</button>
               <button id="clear-done" type="button" class="ghost danger">Clear</button>
             </form>
             <div id="task-list" class="list quick-win-list scroll-area"></div>
@@ -201,18 +180,41 @@
             </div>
           </section>
 
-          <button type="button" class="cta-chip hidden" id="quit-cta">Start a quit tracker</button>
-          <section class="card quit-card collapsed" data-focus-visible data-section="quit">
+          <section class="card" data-focus-visible data-section="quit" id="goals">
             <header class="card-head">
               <div>
-                <p class="eyebrow">Habits left behind</p>
-                <h3>Quit tracker</h3>
-                <p class="muted">Keep a gentle record of retired habits.</p>
+                <p class="eyebrow">Goals &amp; quit list</p>
+                <h3>Annual goals</h3>
+                <p class="muted">Track outcomes and habits you are leaving behind.</p>
               </div>
-              <a href="goals.html" class="ghost">Manage quits</a>
             </header>
-            <div id="quit-list" class="quit-list"></div>
-            <p class="muted" id="empty-quit">No retired habits yet.</p>
+            <form id="goal-form" class="stack goal-form" aria-label="Goal entry">
+              <label class="stacked">Goal title
+                <input id="goal-input" type="text" placeholder="Ship 12 longform essays" required aria-label="Add goal" />
+              </label>
+              <button type="submit" class="primary">Save goal</button>
+            </form>
+            <div id="goal-list" class="goal-list scroll-area" aria-live="polite"></div>
+            <div class="divider"></div>
+            <div class="grid two-col quit-grid">
+              <div class="stack">
+                <p class="eyebrow">Quit tracker</p>
+                <p class="muted">Log habits you are quitting and monitor time away.</p>
+                <form id="quit-form" class="grid two-col" aria-label="Quit tracker form">
+                  <label class="stacked">Habit name
+                    <input id="quit-name" type="text" placeholder="No sugar drinks" required aria-label="Habit to quit" />
+                  </label>
+                  <label class="stacked">Quit date
+                    <input id="quit-date" type="date" required aria-label="Quit date" />
+                  </label>
+                  <button type="submit" class="primary full-width">Record</button>
+                </form>
+              </div>
+              <div class="scroll-area">
+                <div id="quit-list" class="quit-list"></div>
+                <p class="muted" id="empty-quit">No retired habits yet.</p>
+              </div>
+            </div>
           </section>
         </div>
 
@@ -229,6 +231,62 @@
           <p class="muted" id="empty-habits">Add habits below to see them here.</p>
         </section>
 
+        <section class="card library-card span-12" id="library" data-section="library">
+          <header class="card-head">
+            <div>
+              <p class="eyebrow">Habits</p>
+              <h3>Library &amp; cadence</h3>
+              <p class="muted">Create, edit, and remove habits from the main dashboard.</p>
+            </div>
+          </header>
+          <form id="habit-form" class="stack" aria-label="Habit builder">
+            <label class="stacked">Name
+              <input id="habit-input" type="text" placeholder="Name (Stretch, Write, Meditate)" required aria-label="Habit name" />
+            </label>
+            <div class="grid two-col">
+              <label class="stacked">Icon
+                <select id="habit-icon" aria-label="Habit icon">
+                  <option value="">None</option>
+                  <option value="🔥">🔥 Fire</option>
+                  <option value="✅">✅ Check</option>
+                  <option value="🌿">🌿 Calm</option>
+                  <option value="📚">📚 Study</option>
+                  <option value="💪">💪 Strength</option>
+                  <option value="🧘">🧘 Flow</option>
+                  <option value="🌅">🌅 Dawn</option>
+                  <option value="🎯">🎯 Focus</option>
+                  <option value="🏃">🏃 Move</option>
+                  <option value="☕">☕ Mindful sip</option>
+                </select>
+              </label>
+              <label class="stacked">Accent
+                <input id="habit-color" type="color" value="#5563ff" aria-label="Habit accent color" />
+              </label>
+            </div>
+            <label class="stacked">Cadence
+              <select id="habit-cadence" aria-label="Habit cadence">
+                <option value="daily">Every day</option>
+                <option value="weekdays">Weekdays</option>
+                <option value="custom">Specific days</option>
+              </select>
+            </label>
+            <div class="days" id="day-picker" aria-label="Pick specific days">
+              <label><input type="checkbox" value="0" />Sun</label>
+              <label><input type="checkbox" value="1" />Mon</label>
+              <label><input type="checkbox" value="2" />Tue</label>
+              <label><input type="checkbox" value="3" />Wed</label>
+              <label><input type="checkbox" value="4" />Thu</label>
+              <label><input type="checkbox" value="5" />Fri</label>
+              <label><input type="checkbox" value="6" />Sat</label>
+            </div>
+            <div class="row end">
+              <span class="muted" id="habit-edit-hint">Add to today&rsquo;s checklist</span>
+              <button type="submit" id="habit-submit" class="primary">Add habit</button>
+            </div>
+          </form>
+          <div id="library-list" class="list"></div>
+        </section>
+
         <section class="card history-card span-12" data-focus-hidden data-section="history">
           <header class="card-head">
             <div>
@@ -239,13 +297,13 @@
             <div class="row wrap">
               <button type="button" id="history-toggle" class="ghost">Expand year view</button>
               <label class="stacked">View
-                <select id="history-mode">
+                <select id="history-mode" aria-label="History mode">
                   <option value="year">Year</option>
                   <option value="month">Month</option>
                 </select>
               </label>
               <label class="stacked" for="year-picker">Year
-                <select id="year-picker"></select>
+                <select id="year-picker" aria-label="Year picker"></select>
               </label>
             </div>
           </header>
@@ -253,7 +311,7 @@
         </section>
 
         <button type="button" class="cta-chip hidden" id="notes-cta">Open notes</button>
-        <section class="card journal-card span-12 collapsed" data-focus-hidden data-section="journal" id="journal">
+        <section class="card journal-card span-12" data-focus-hidden data-section="journal" id="journal">
           <header class="card-head">
             <div>
               <p class="eyebrow">Notes &amp; reflection</p>
@@ -262,27 +320,27 @@
             </div>
           </header>
           <div class="tab-head" role="tablist">
-            <button type="button" class="tab active" data-tab="reflection">Daily reflection</button>
-            <button type="button" class="tab" data-tab="dreams">Dream journal</button>
+            <button type="button" class="tab active" data-tab="reflection" aria-controls="journal-body">Daily reflection</button>
+            <button type="button" class="tab" data-tab="dreams" aria-controls="dream-body">Dream journal</button>
           </div>
-          <div class="tab-body" data-tab-panel="reflection">
+          <div class="tab-body" id="journal-body" data-tab-panel="reflection">
             <form id="journal-form" class="stack">
-              <input id="journal-title" type="text" placeholder="Title" />
-              <textarea id="journal-text" rows="5" placeholder="What worked, what didn&rsquo;t?" required></textarea>
+              <input id="journal-title" type="text" placeholder="Title" aria-label="Journal title" />
+              <textarea id="journal-text" rows="5" placeholder="What worked, what didn&rsquo;t?" required aria-label="Journal entry"></textarea>
               <div class="row end">
                 <span class="muted" id="journal-saved">Unsaved</span>
-                <button type="submit">Save entry</button>
+                <button type="submit" class="primary">Save entry</button>
               </div>
             </form>
             <div id="journal-list" class="list scroll-area"></div>
           </div>
-          <div class="tab-body hidden" data-tab-panel="dreams">
+          <div class="tab-body hidden" id="dream-body" data-tab-panel="dreams">
             <form id="dream-form" class="stack">
-              <input id="dream-title" type="text" placeholder="Dream headline" />
-              <textarea id="dream-text" rows="5" placeholder="Did you dream? Capture a line or two." required></textarea>
+              <input id="dream-title" type="text" placeholder="Dream headline" aria-label="Dream title" />
+              <textarea id="dream-text" rows="5" placeholder="Did you dream? Capture a line or two." required aria-label="Dream entry"></textarea>
               <div class="row end">
                 <span class="muted" id="dream-saved">Unsaved</span>
-                <button type="submit">Save dream</button>
+                <button type="submit" class="primary">Save dream</button>
               </div>
             </form>
             <div id="dream-list" class="list scroll-area"></div>
@@ -291,17 +349,6 @@
       </main>
     </div>
   </div>
-
-  <nav class="bottom-nav" aria-label="Mobile navigation">
-    <a href="#dashboard" class="nav-pill active" aria-label="Dashboard"><span>🏠</span><small>Dashboard</small></a>
-    <a href="#habits" class="nav-pill" aria-label="Habits"><span>🗒️</span><small>Habits</small></a>
-    <a href="#stats" class="nav-pill" aria-label="Stats"><span>📊</span><small>Stats</small></a>
-    <a href="#journal" class="nav-pill" aria-label="Journal"><span>📔</span><small>Journal</small></a>
-    <button type="button" class="nav-pill icon-button" id="mobile-menu" aria-label="More">
-      <span>⋯</span>
-      <small>More</small>
-    </button>
-  </nav>
 
   <footer class="muted center">
     <p>Everything runs client-side. No trackers, no accounts, just your habits.</p>
