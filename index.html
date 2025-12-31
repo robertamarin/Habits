@@ -3,27 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Habits — Fresh Start</title>
+  <title>Robert's 2026 Habit Engine</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body data-page="home">
   <header class="top">
     <div class="brand">
       <div class="dot"></div>
       <div>
-        <p class="eyebrow">Rebuilt for speed</p>
-        <h1>Habit Engine</h1>
+        <p class="eyebrow">Robert's 2026</p>
+        <h1 id="app-title">Habit Engine</h1>
       </div>
     </div>
     <div class="actions">
-      <button id="reset-data" type="button" class="ghost">Reset data</button>
-      <label class="switch">
-        <input type="checkbox" id="theme-toggle" aria-label="Toggle light mode" />
-        <span>Light mode</span>
-      </label>
+      <a href="goals.html" class="ghost">Goals &amp; quitting</a>
+      <button id="settings-button" type="button" class="ghost">Settings</button>
     </div>
   </header>
 
@@ -32,7 +29,6 @@
       <div>
         <p class="eyebrow">Today</p>
         <h2 id="today-label"></h2>
-        <p class="muted">Stay on track with a simple checklist and lightweight history. Everything stores locally in your browser.</p>
         <div class="progress-wrap">
           <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
             <div id="progress-bar"></div>
@@ -40,27 +36,45 @@
           <div class="legend">
             <div class="pill">
               <strong id="complete-count">0</strong>
-              <span class="muted">completed</span>
+              <span class="muted">done now</span>
             </div>
             <div class="pill">
               <strong id="habit-count">0</strong>
-              <span class="muted">habits today</span>
+              <span class="muted">items today</span>
             </div>
             <div class="pill">
               <strong id="streak"></strong>
               <span class="muted">day streak</span>
             </div>
+            <div class="pill">
+              <strong id="momentum"></strong>
+              <span class="muted">7d momentum</span>
+            </div>
           </div>
         </div>
       </div>
-      <div class="card note">
-        <p class="eyebrow">Why this feels faster</p>
-        <ul>
-          <li>Fresh markup, zero legacy widgets.</li>
-          <li>Lean CSS and JavaScript only where necessary.</li>
-          <li>Local-only storage — no network requests.</li>
-        </ul>
-        <p class="muted">If things ever feel slow again, use the Reset button above to clear saved data.</p>
+      <div class="card fast-stats">
+        <div>
+          <p class="eyebrow">Signals</p>
+          <h3>Readouts at a glance</h3>
+        </div>
+        <div class="stats-grid">
+          <div class="stat">
+            <span class="muted">Deep focus</span>
+            <strong id="focus-time">0h</strong>
+            <small>sum of journaled wins</small>
+          </div>
+          <div class="stat">
+            <span class="muted">Completion pace</span>
+            <strong id="pace"></strong>
+            <small>vs. yesterday</small>
+          </div>
+          <div class="stat">
+            <span class="muted">Best run</span>
+            <strong id="best-day"></strong>
+            <small>peak completion</small>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -75,6 +89,21 @@
         </header>
         <div id="habit-list" class="list"></div>
         <p class="muted" id="empty-habits">Add habits below to see them here.</p>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <p class="eyebrow">Night log</p>
+            <h3>Dream journal</h3>
+          </div>
+        </header>
+        <form id="dream-form" class="stack">
+          <input id="dream-title" type="text" placeholder="Dream headline" />
+          <textarea id="dream-text" rows="3" placeholder="Did you dream? Capture a line or two." required></textarea>
+          <button type="submit">Save dream</button>
+        </form>
+        <div id="dream-list" class="list"></div>
       </article>
 
       <article class="card">
@@ -146,17 +175,75 @@
     <section class="card">
       <header class="card-head">
         <div>
+          <p class="eyebrow">Quit tracker</p>
+          <h3>Habits I've left behind</h3>
+        </div>
+        <a href="goals.html" class="ghost">Manage quits</a>
+      </header>
+      <div id="quit-list" class="quit-list"></div>
+      <p class="muted" id="empty-quit">No retired habits yet.</p>
+    </section>
+
+    <section class="card">
+      <header class="card-head">
+        <div>
           <p class="eyebrow">History</p>
-          <h3>Recent days</h3>
+          <h3>Month view</h3>
+        </div>
+        <div class="row">
+          <button id="prev-month" type="button" class="ghost">Prev</button>
+          <strong id="month-label"></strong>
+          <button id="next-month" type="button" class="ghost">Next</button>
         </div>
       </header>
-      <div id="history" class="history"></div>
+      <div id="history" class="history-grid"></div>
     </section>
   </main>
 
   <footer class="muted center">
     <p>Everything runs client-side. No trackers, no accounts, just your habits.</p>
   </footer>
+
+  <dialog id="settings-modal">
+    <div class="modal-head">
+      <div>
+        <p class="eyebrow">Control room</p>
+        <h3>Settings</h3>
+      </div>
+      <button id="close-settings" type="button" class="ghost">Close</button>
+    </div>
+    <div class="stack">
+      <label class="stacked">Rename engine
+        <input id="title-input" type="text" />
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="theme-toggle" />
+        <span>Light mode</span>
+      </label>
+      <label class="stacked">Accent mood
+        <select id="accent-picker">
+          <option value="violet">Violet / Teal</option>
+          <option value="sunrise">Sunrise</option>
+          <option value="midnight">Midnight neon</option>
+        </select>
+      </label>
+      <div class="row end">
+        <span class="muted">Full reset wipes everything</span>
+        <button id="reset-data" type="button" class="ghost danger">Reset data</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="day-detail">
+    <div class="modal-head">
+      <div>
+        <p class="eyebrow">Daily details</p>
+        <h3 id="detail-date"></h3>
+      </div>
+      <button id="close-detail" type="button" class="ghost">Close</button>
+    </div>
+    <div class="day-breakdown"></div>
+  </dialog>
 
   <script src="app.js"></script>
 </body>
