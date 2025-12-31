@@ -48,6 +48,7 @@
     progressFill: document.querySelector('.ring-fill'),
     progressValue: document.getElementById('progress-value'),
     ringSubtext: document.getElementById('ring-subtext'),
+    milestoneLabel: document.querySelector('.milestone-label'),
     habitList: document.getElementById('habit-list'),
     emptyHabits: document.getElementById('empty-habits'),
     completeCount: document.getElementById('complete-count'),
@@ -106,6 +107,9 @@
     winsPill: document.getElementById('wins-pill'),
     focusMode: document.getElementById('focus-mode'),
     exportData: document.getElementById('export-data'),
+    exportCsv: document.getElementById('export-csv'),
+    importData: document.getElementById('import-data'),
+    importFile: document.getElementById('import-file'),
     journalSaved: document.getElementById('journal-saved'),
     dreamSaved: document.getElementById('dream-saved'),
     // Goals page
@@ -186,9 +190,9 @@
     if (!hasData) return '#1f2937';
     if (hasHabits && percent === 0) return '#ef4444';
     if (!hasHabits) return '#1f2937';
-    if (percent <= 33) return '#312e81';
-    if (percent <= 66) return '#2563eb';
-    if (percent <= 85) return '#22d3ee';
+    if (percent <= 25) return '#312e81';
+    if (percent <= 50) return '#2563eb';
+    if (percent <= 75) return '#0ea5e9';
     return 'var(--accent-strong)';
   };
 
@@ -688,6 +692,18 @@
     if (dom.streak) dom.streak.textContent = `${streakCount}`;
     const value = dom.streakBar.querySelector('.streak-value');
     if (value) value.textContent = `${streakCount}d`;
+    const milestones = [7, 14, 30, 60];
+    const reached = milestones.filter((m) => streakCount >= m).pop();
+    if (dom.milestoneLabel) {
+      if (reached) {
+        dom.milestoneLabel.textContent = `Milestone: ${reached} days`;
+        dom.streakBar.classList.add('wins-pulse');
+        setTimeout(() => dom.streakBar && dom.streakBar.classList.remove('wins-pulse'), 400);
+      } else {
+        const next = milestones.find((m) => m > streakCount) || 60;
+        dom.milestoneLabel.textContent = `Next milestone: ${next} days`;
+      }
+    }
   };
 
   const renderStats = () => {
@@ -732,6 +748,7 @@
       dayLabel.textContent = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(new Date(date));
       const fill = document.createElement('span');
       fill.style.height = `${percent}%`;
+       bar.title = `${formatDate(date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${percent}% complete`;
       bar.append(dayLabel, fill);
       if (date === today()) bar.classList.add('today');
       dom.weeklyBars.append(bar);
@@ -759,7 +776,15 @@
       const hasData = hasActivity(day);
       const button = document.createElement('button');
       const color = completionColor(percent, hasHabits, hasData);
-      button.style.background = color;
+      if (color.startsWith('#') && color.length === 7) {
+        const intensity = Math.max(0.15, Math.min(percent / 100, 1));
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        button.style.background = `rgba(${r}, ${g}, ${b}, ${intensity})`;
+      } else {
+        button.style.background = color;
+      }
       button.title = `${formatDate(date, { month: 'short', day: 'numeric' })}: ${done}/${todaysHabits.length} habits, ${wins} wins`;
       button.addEventListener('click', () => openDayDetail(date));
       dom.monthlyStrip.append(button);
@@ -1187,6 +1212,84 @@
       anchor.download = 'habit-engine-data.json';
       anchor.click();
       URL.revokeObjectURL(url);
+    });
+  }
+
+  const exportCsvData = () => {
+    const header = ['date', 'habitId', 'habitName', 'done'];
+    const rows = [header.join(',')];
+    Object.keys(state.days).forEach((date) => {
+      const day = state.days[date];
+      state.habits.forEach((habit) => {
+        const done = day?.habits?.[habit.id] ? 1 : 0;
+        rows.push([date, habit.id, `"${habit.name.replace(/"/g, '""')}"`, done].join(','));
+      });
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'habit-engine-data.csv';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const parseCsvImport = (text) => {
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    if (!lines.length) return null;
+    const [headerLine, ...rows] = lines;
+    const headers = headerLine.split(',').map((h) => h.trim().toLowerCase());
+    const dateIdx = headers.indexOf('date');
+    const idIdx = headers.indexOf('habitid');
+    const nameIdx = headers.indexOf('habitname');
+    const doneIdx = headers.indexOf('done');
+    if (dateIdx === -1 || nameIdx === -1 || doneIdx === -1) return null;
+    const habitsById = {};
+    const days = {};
+    rows.forEach((line) => {
+      const cols = line.match(/("([^"]|"")*"|[^,]+)/g) || [];
+      const date = (cols[dateIdx] || '').replace(/"/g, '');
+      const id = idIdx === -1 ? `csv-${cols[nameIdx]}` : (cols[idIdx] || '').replace(/"/g, '');
+      const name = (cols[nameIdx] || '').replace(/^"|"$/g, '').replace(/""/g, '"');
+      const done = Number(cols[doneIdx]) === 1;
+      if (!habitsById[id]) habitsById[id] = { id, name, cadence: 'daily', days: [], icon: '', color: '#7c3aed' };
+      if (!days[date]) days[date] = { habits: {}, tasks: [], journal: [], dreams: [] };
+      days[date].habits[id] = done;
+    });
+    return { habits: Object.values(habitsById), days };
+  };
+
+  if (dom.exportCsv) {
+    dom.exportCsv.addEventListener('click', exportCsvData);
+  }
+
+  if (dom.importData && dom.importFile) {
+    dom.importData.addEventListener('click', () => dom.importFile.click());
+    dom.importFile.addEventListener('change', (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const text = String(reader.result || '');
+          let payload = null;
+          if (file.name.endsWith('.json')) {
+            payload = JSON.parse(text);
+          } else if (file.name.endsWith('.csv')) {
+            payload = parseCsvImport(text);
+          }
+          if (!payload) throw new Error('Unsupported file format');
+          refreshFromStorage(payload);
+          saveState();
+          alert('Import complete');
+        } catch (e) {
+          alert('Unable to import data. Please use a valid JSON or CSV export.');
+          console.error(e);
+        } finally {
+          dom.importFile.value = '';
+        }
+      };
+      reader.readAsText(file);
     });
   }
 
