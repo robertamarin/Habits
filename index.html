@@ -20,21 +20,6 @@
         </div>
       </div>
       <div class="nav-wrap">
-        <nav class="primary-nav" aria-label="Primary navigation">
-          <a href="#dashboard" class="nav-link active" aria-label="Dashboard">Dashboard</a>
-          <a href="#habits" class="nav-link" aria-label="Checklist">Checklist</a>
-          <a href="#progress" class="nav-link" aria-label="Progress">Progress</a>
-          <a href="#goals" class="nav-link" aria-label="Goals and quitting">Goals</a>
-          <a href="#history" class="nav-link" aria-label="Year overview">History</a>
-          <a href="#journal" class="nav-link" aria-label="Journal">Journal</a>
-        </nav>
-        <button type="button" class="icon-button nav-toggle mobile-only" id="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">☰</button>
-      </div>
-      <div class="top-actions">
-        <label class="switch focus-toggle pill">
-          <input type="checkbox" id="focus-mode" aria-label="Toggle focus mode" />
-          <span>Focus mode</span>
-        </label>
         <button id="settings-button-top" type="button" class="ghost pill" aria-label="Open settings">Settings</button>
       </div>
     </header>
@@ -142,11 +127,6 @@
             </header>
             <div class="heatmap-wrap">
               <div class="calendar-head">
-                <div class="month-nav">
-                  <button type="button" class="ghost icon-button" id="prev-month" aria-label="Previous month">◀</button>
-                  <div class="calendar-month" id="calendar-month" aria-live="polite"></div>
-                  <button type="button" class="ghost icon-button" id="next-month" aria-label="Next month">▶</button>
-                </div>
                 <div class="calendar-controls">
                   <label class="stacked">Habit filter
                     <select id="heatmap-filter" aria-label="Heatmap habit filter">
@@ -154,16 +134,18 @@
                     </select>
                   </label>
                 </div>
-                <div class="calendar-legend" aria-label="Heatmap legend">
-                  <span>High completion</span>
-                  <div class="legend-bar"><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i></div>
-                  <span>Low completion</span>
-                </div>
               </div>
               <div class="weekday-labels" aria-hidden="true">
                 <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
               </div>
               <div id="monthly-strip" class="calendar-grid" role="grid" aria-label="Calendar heatmap"></div>
+              <div class="calendar-footer">
+                <div class="month-nav">
+                  <button type="button" class="ghost icon-button" id="prev-month" aria-label="Previous month">◀</button>
+                  <div class="calendar-month" id="calendar-month" aria-live="polite"></div>
+                  <button type="button" class="ghost icon-button" id="next-month" aria-label="Next month">▶</button>
+                </div>
+              </div>
             </div>
           </section>
         </div>
@@ -215,13 +197,18 @@
         </div>
 
         <section class="card wide-habits span-12" data-focus-visible data-section="habits" id="habits">
-          <header class="card-head">
+          <header class="card-head habits-head">
             <div>
               <p class="eyebrow">Checklist</p>
               <h3>Today&rsquo;s habits</h3>
               <p class="muted">Tick the habits you will complete today to keep your loop moving.</p>
             </div>
-            <button id="mark-all" type="button" class="ghost">Mark all done</button>
+            <div class="row wrap habit-actions">
+              <label class="stacked skinny">Select day
+                <input type="date" id="habit-date" />
+              </label>
+              <button id="mark-all" type="button" class="ghost">Mark all done</button>
+            </div>
           </header>
           <div id="habit-list" class="list draggable-list"></div>
           <p class="muted" id="empty-habits">Add habits in Settings to see them here.</p>
