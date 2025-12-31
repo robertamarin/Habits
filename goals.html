@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Goals — Robert's 2026 Habit Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-page="goals">
+  <header class="top">
+    <div class="brand">
+      <div class="dot"></div>
+      <div>
+        <p class="eyebrow">Robert's 2026</p>
+        <h1 id="app-title">Habit Engine</h1>
+      </div>
+    </div>
+    <div class="actions">
+      <a href="index.html" class="ghost">Back to engine</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">Objectives</p>
+          <h3>Annual goals</h3>
+        </div>
+      </header>
+      <form id="goal-form" class="stack">
+        <input id="goal-input" type="text" placeholder="Ship 12 longform essays" required />
+        <button type="submit">Save goal</button>
+      </form>
+      <div id="goal-list" class="goal-list"></div>
+    </section>
+
+    <section class="card">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">Quit list</p>
+          <h3>Habits I am done with</h3>
+        </div>
+      </header>
+      <form id="quit-form" class="grid">
+        <label class="stacked">Habit name
+          <input id="quit-name" type="text" placeholder="No sugar drinks" required />
+        </label>
+        <label class="stacked">Quit date
+          <input id="quit-date" type="date" required />
+        </label>
+        <button type="submit">Record</button>
+      </form>
+      <div id="quit-library" class="goal-list"></div>
+    </section>
+  </main>
+
+  <footer class="muted center">
+    <p>Everything runs client-side. No trackers, no accounts, just your habits.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
