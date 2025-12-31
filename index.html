@@ -19,70 +19,74 @@
       </div>
     </div>
     <div class="actions">
+      <label class="switch focus-toggle">
+        <input type="checkbox" id="focus-mode" />
+        <span>Focus mode</span>
+      </label>
       <a href="goals.html" class="ghost">Goals &amp; quitting</a>
       <button id="settings-button" type="button" class="ghost">Settings</button>
     </div>
   </header>
 
   <main>
-    <section class="hero">
-      <div>
-        <p class="eyebrow">Today</p>
-        <h2 id="today-label"></h2>
-        <div class="progress-wrap">
-          <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-            <div id="progress-bar"></div>
-          </div>
-          <div class="progress-meta">
-            <span id="progress-value" class="muted"></span>
-          </div>
-          <div class="legend">
-            <div class="pill">
-              <strong id="complete-count">0</strong>
-              <span class="muted">done now</span>
-            </div>
-            <div class="pill">
-              <strong id="habit-count">0</strong>
-              <span class="muted">items today</span>
-            </div>
-            <div class="pill">
-              <strong id="streak"></strong>
-              <span class="muted">day streak</span>
-            </div>
-            <div class="pill">
-              <strong id="momentum"></strong>
-              <span class="muted">7d momentum</span>
-            </div>
-          </div>
+    <section class="card topline">
+      <div class="summary-head">
+        <div>
+          <p class="eyebrow">Today</p>
+          <h2 id="today-label"></h2>
+        </div>
+        <div class="row">
+          <button type="button" id="export-data" class="ghost">Export data</button>
+          <button id="settings-button-top" type="button" class="ghost">Settings</button>
         </div>
       </div>
-      <div class="card fast-stats">
-        <div>
-          <p class="eyebrow">Signals</p>
-          <h3>Readouts at a glance</h3>
+      <div class="summary-grid">
+        <div class="ring-stack">
+          <p class="eyebrow">Daily completion</p>
+          <div class="ring-wrap">
+            <svg id="progress-ring" viewBox="0 0 160 160">
+              <circle class="ring-bg" cx="80" cy="80" r="70" />
+              <circle class="ring-fill" cx="80" cy="80" r="70" />
+            </svg>
+            <div class="ring-center">
+              <div class="ring-number" id="progress-value">0%</div>
+              <div class="ring-sub" id="ring-subtext">0 / 0</div>
+            </div>
+          </div>
+          <div class="streak-block">
+            <div class="row between">
+              <p class="eyebrow">Current streak</p>
+              <span class="muted milestone-label">Milestones: 7 · 14 · 30 · 60</span>
+            </div>
+            <div class="streak-bar" id="streak-bar">
+              <div class="streak-fill"></div>
+              <div class="ticks">
+                <span data-mark="7"></span>
+                <span data-mark="14"></span>
+                <span data-mark="30"></span>
+                <span data-mark="60"></span>
+              </div>
+              <span class="streak-value" id="streak"></span>
+            </div>
+          </div>
         </div>
-        <div class="stats-grid">
-          <div class="stat">
-            <span class="muted">Deep focus</span>
-            <strong id="focus-time">0h</strong>
-            <small>sum of journaled wins</small>
+        <div class="count-stack">
+          <div class="primary-number" id="complete-count">0</div>
+          <p class="muted">Completed today</p>
+          <div class="pill stat-pill">
+            <strong id="habit-count">0</strong>
+            <span class="muted">Habits on deck</span>
           </div>
-          <div class="stat">
-            <span class="muted">Completion pace</span>
-            <strong id="pace"></strong>
-            <small>vs. yesterday</small>
-          </div>
-          <div class="stat">
-            <span class="muted">Best run</span>
-            <strong id="best-day"></strong>
-            <small>peak completion</small>
+          <div class="pill stat-pill">
+            <strong id="momentum">0%</strong>
+            <span class="muted">7d momentum</span>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="grid wide">
-      <article class="card">
+    <section class="grid actionable">
+      <article class="card wide-habits" data-focus-visible data-section="habits">
         <header class="card-head">
           <div>
             <p class="eyebrow">Checklist</p>
@@ -90,16 +94,17 @@
           </div>
           <button id="mark-all" type="button" class="ghost">Mark all done</button>
         </header>
-        <div id="habit-list" class="list"></div>
+        <div id="habit-list" class="list draggable-list"></div>
         <p class="muted" id="empty-habits">Add habits below to see them here.</p>
       </article>
 
-      <article class="card">
+      <article class="card" data-focus-visible data-section="wins">
         <header class="card-head">
           <div>
             <p class="eyebrow">Quick wins</p>
-            <h3>One-off victories</h3>
+            <h3>Quick wins</h3>
           </div>
+          <span class="pill stat-pill" id="wins-pill">Wins today: 0</span>
         </header>
         <form id="task-form" class="stack">
           <input id="task-input" type="text" placeholder="Log a one-off win" required />
@@ -113,39 +118,84 @@
       </article>
     </section>
 
-    <section class="grid journal-grid">
-      <article class="card">
-        <header class="card-head">
-          <div>
-            <p class="eyebrow">Journal</p>
-            <h3>Daily reflection</h3>
-          </div>
-        </header>
+    <section class="card weekly-card" data-focus-hidden data-section="weekly">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">Weekly visuals</p>
+          <h3>Completion by day</h3>
+        </div>
+      </header>
+      <div id="weekly-bars" class="bar-grid"></div>
+    </section>
+
+    <section class="card monthly-card" data-focus-hidden data-section="monthly">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">Monthly strip</p>
+          <h3>30-day intensity</h3>
+        </div>
+      </header>
+      <div id="monthly-strip" class="month-strip"></div>
+    </section>
+
+    <section class="card history-card" data-focus-hidden data-section="history">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">History</p>
+          <h3>Long view</h3>
+        </div>
+        <div class="row">
+          <button type="button" id="history-toggle" class="ghost">Expand year view</button>
+          <label class="stacked">View
+            <select id="history-mode">
+              <option value="year">Year</option>
+              <option value="month">Month</option>
+            </select>
+          </label>
+          <label class="stacked" for="year-picker">Year
+            <select id="year-picker"></select>
+          </label>
+        </div>
+      </header>
+      <div id="history" class="history-grid collapsed"></div>
+    </section>
+
+    <section class="card journal-card" data-focus-hidden data-section="journal">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">Journal &amp; reflection</p>
+          <h3>Notes</h3>
+        </div>
+      </header>
+      <div class="tab-head" role="tablist">
+        <button type="button" class="tab active" data-tab="reflection">Daily reflection</button>
+        <button type="button" class="tab" data-tab="dreams">Dream journal</button>
+      </div>
+      <div class="tab-body" data-tab-panel="reflection">
         <form id="journal-form" class="stack">
           <input id="journal-title" type="text" placeholder="Title" />
           <textarea id="journal-text" rows="3" placeholder="What worked, what didn&rsquo;t?" required></textarea>
-          <button type="submit">Save entry</button>
+          <div class="row end">
+            <span class="muted" id="journal-saved">Unsaved</span>
+            <button type="submit">Save entry</button>
+          </div>
         </form>
         <div id="journal-list" class="list"></div>
-      </article>
-
-      <article class="card">
-        <header class="card-head">
-          <div>
-            <p class="eyebrow">Night log</p>
-            <h3>Dream journal</h3>
-          </div>
-        </header>
+      </div>
+      <div class="tab-body hidden" data-tab-panel="dreams">
         <form id="dream-form" class="stack">
           <input id="dream-title" type="text" placeholder="Dream headline" />
           <textarea id="dream-text" rows="3" placeholder="Did you dream? Capture a line or two." required></textarea>
-          <button type="submit">Save dream</button>
+          <div class="row end">
+            <span class="muted" id="dream-saved">Unsaved</span>
+            <button type="submit">Save dream</button>
+          </div>
         </form>
         <div id="dream-list" class="list"></div>
-      </article>
+      </div>
     </section>
 
-    <section class="card">
+    <section class="card" data-focus-hidden data-section="quit">
       <header class="card-head">
         <div>
           <p class="eyebrow">Quit tracker</p>
@@ -155,21 +205,6 @@
       </header>
       <div id="quit-list" class="quit-list"></div>
       <p class="muted" id="empty-quit">No retired habits yet.</p>
-    </section>
-
-    <section class="card">
-      <header class="card-head">
-        <div>
-          <p class="eyebrow">History</p>
-          <h3>Year view</h3>
-        </div>
-        <div class="row">
-          <label class="stacked" for="year-picker">Year
-            <select id="year-picker"></select>
-          </label>
-        </div>
-      </header>
-      <div id="history" class="history-grid"></div>
     </section>
   </main>
 
@@ -200,6 +235,29 @@
           <option value="midnight">Midnight neon</option>
         </select>
       </label>
+      <div class="stack">
+        <p class="eyebrow">Visibility</p>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="weekly" />
+          <span>Hide weekly view</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="monthly" />
+          <span>Hide monthly strip</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="history" />
+          <span>Hide year &amp; month view</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="journal" />
+          <span>Hide journal</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="quit" />
+          <span>Hide quit tracker</span>
+        </label>
+      </div>
       <div class="row end">
         <span class="muted">Full reset wipes everything</span>
         <button id="reset-data" type="button" class="ghost danger">Reset data</button>
