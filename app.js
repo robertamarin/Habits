@@ -12,7 +12,7 @@
     accent: 'violet',
     quits: [],
     goals: [],
-    currentMonth: '2025-12-01'
+    currentYear: new Date().getFullYear()
   });
 
   const loadState = () => {
@@ -75,8 +75,7 @@
     themeToggle: document.getElementById('theme-toggle'),
     history: document.getElementById('history'),
     monthLabel: document.getElementById('month-label'),
-    prevMonth: document.getElementById('prev-month'),
-    nextMonth: document.getElementById('next-month'),
+    yearPicker: document.getElementById('year-picker'),
     settingsButton: document.getElementById('settings-button'),
     settingsModal: document.getElementById('settings-modal'),
     closeSettings: document.getElementById('close-settings'),
@@ -231,24 +230,17 @@
       const item = document.createElement('div');
       item.className = 'task';
 
-      const left = document.createElement('label');
-      left.className = 'checkbox';
-
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.checked = task.done;
-      input.addEventListener('change', () => {
-        task.done = input.checked;
-        saveState();
-        renderTasks();
-        renderHistory();
-      });
-
-      const title = document.createElement('span');
+      const left = document.createElement('div');
+      left.className = 'task-text';
+      const title = document.createElement('div');
       title.className = 'title';
       title.textContent = task.title;
+      const time = document.createElement('span');
+      time.className = 'meta';
+      const createdDate = task.created ? new Date(task.created) : new Date(today());
+      time.textContent = formatDate(createdDate.toISOString().slice(0, 10), { month: 'short', day: 'numeric' });
 
-      left.append(input, title);
+      left.append(title, time);
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'ghost';
@@ -264,8 +256,7 @@
       dom.taskList.append(item);
     });
 
-    const done = day.tasks.filter((t) => t.done).length;
-    dom.taskCount.textContent = `${done}/${day.tasks.length} done`;
+    dom.taskCount.textContent = `${day.tasks.length} logged`;
   };
 
   const renderLibrary = () => {
@@ -459,8 +450,7 @@
   const taskCompletion = (date) => {
     const day = state.days[date];
     if (!day || !day.tasks.length) return 0;
-    const done = day.tasks.filter((t) => t.done).length;
-    return Math.round((done / day.tasks.length) * 100);
+    return 100;
   };
 
   const renderProgress = () => {
@@ -502,7 +492,7 @@
     if (dom.bestDay) dom.bestDay.textContent = `${best}%`;
 
     if (dom.focusTime) {
-      const tasksDone = getDay(today()).tasks.filter((t) => t.done).length;
+      const tasksDone = getDay(today()).tasks.length;
       const minutes = tasksDone * 15;
       dom.focusTime.textContent = `${(minutes / 60).toFixed(1)}h`;
     }
@@ -510,77 +500,50 @@
 
   const renderHistory = () => {
     if (!dom.history) return;
-    const monthStart = new Date(state.currentMonth);
-    const month = monthStart.getMonth();
-    const year = monthStart.getFullYear();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const dates = Array.from({ length: daysInMonth }).map((_, i) => {
-      const d = new Date(year, month, i + 1);
+    const todayDate = new Date();
+    const safeYear = Math.min(state.currentYear || todayDate.getFullYear(), todayDate.getFullYear());
+    state.currentYear = safeYear;
+    const currentYearValue = safeYear;
+    const storedYears = Object.keys(state.days).map((key) => new Date(key).getFullYear());
+    const minYear = Math.min(...(storedYears.length ? storedYears : [currentYearValue, 2025]));
+    const maxYear = todayDate.getFullYear();
+    if (dom.yearPicker) {
+      dom.yearPicker.innerHTML = '';
+      for (let y = maxYear; y >= minYear; y--) {
+        const opt = document.createElement('option');
+        opt.value = String(y);
+        opt.textContent = y;
+        if (y === currentYearValue) opt.selected = true;
+        dom.yearPicker.append(opt);
+      }
+    }
+    const year = currentYearValue;
+    const start = new Date(year, 0, 1);
+    const end = new Date(Math.min(todayDate.getTime(), new Date(year, 11, 31).getTime()));
+    const daysInRange = Math.floor((end - start) / 86400000) + 1;
+    const dates = Array.from({ length: daysInRange }).map((_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
       return d.toISOString().slice(0, 10);
     });
 
-    if (dom.monthLabel) dom.monthLabel.textContent = formatDate(monthStart.toISOString().slice(0, 10), { month: 'long', year: 'numeric' });
+    if (dom.monthLabel) dom.monthLabel.textContent = formatDate(start.toISOString().slice(0, 10), { year: 'numeric' });
     dom.history.innerHTML = '';
 
     dates.forEach((date) => {
       const percent = dayCompletion(date);
-      const day = state.days[date];
-      const tasksPercent = taskCompletion(date);
-      const tasks = day ? `${day.tasks.filter((t) => t.done).length}/${(day.tasks || []).length}` : '0/0';
       const tile = document.createElement('button');
       tile.type = 'button';
       tile.className = 'day-tile';
       tile.style.background = `linear-gradient(160deg, ${progressColor(percent)}, rgba(255,255,255,0.08))`;
 
       const heading = document.createElement('strong');
-      heading.textContent = new Date(date).getDate();
+      heading.textContent = formatDate(date, { month: 'short', day: 'numeric' });
       const stats = document.createElement('div');
-      stats.textContent = `${percent}%`;
-      const bar = document.createElement('div');
-      bar.className = 'tiny-progress';
-      const barFill = document.createElement('span');
-      barFill.style.width = `${percent}%`;
-      barFill.style.background = progressColor(percent);
-      bar.append(barFill);
+      stats.className = 'meta';
+      stats.textContent = percent ? `${percent}% habits` : 'No data';
 
-      const taskBar = document.createElement('div');
-      taskBar.className = 'tiny-progress subtle';
-      const taskFill = document.createElement('span');
-      taskFill.style.width = `${tasksPercent}%`;
-      taskFill.style.background = progressColor(tasksPercent);
-      taskBar.append(taskFill);
-
-      const tasksLine = document.createElement('div');
-      tasksLine.className = 'meta';
-      tasksLine.textContent = `Tasks ${tasks} (${tasksPercent}%)`;
-
-      const badges = document.createElement('div');
-      badges.className = 'chip-row';
-      if (day && day.journal && day.journal.length) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'chip ghost';
-        btn.textContent = `Journal (${day.journal.length})`;
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          openDayDetail(date, 'journal');
-        });
-        badges.append(btn);
-      }
-      if (day && day.dreams && day.dreams.length) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'chip ghost';
-        btn.textContent = `Dream (${day.dreams.length})`;
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          openDayDetail(date, 'dreams');
-        });
-        badges.append(btn);
-      }
-
-      tile.append(heading, stats, bar, taskBar, tasksLine);
-      if (badges.childElementCount) tile.append(badges);
+      tile.append(heading, stats);
       tile.addEventListener('click', () => openDayDetail(date));
       dom.history.append(tile);
     });
@@ -611,22 +574,15 @@
 
     const tasksBlock = document.createElement('div');
     tasksBlock.className = 'panelish';
-    const tasksPercent = taskCompletion(date);
-    tasksBlock.innerHTML = `<h4 id="detail-tasks">One-off wins</h4><p class="muted">${tasksPercent}% tasks complete (${day.tasks.filter((t) => t.done).length}/${(day.tasks || []).length || 0})</p>`;
-    const tasksProgress = document.createElement('div');
-    tasksProgress.className = 'tiny-progress subtle';
-    const tasksFill = document.createElement('span');
-    tasksFill.style.width = `${tasksPercent}%`;
-    tasksFill.style.background = progressColor(tasksPercent);
-    tasksProgress.append(tasksFill);
+    tasksBlock.innerHTML = `<h4 id="detail-tasks">One-off wins</h4><p class="muted">${day.tasks.length || 0} wins logged</p>`;
     const taskList = document.createElement('ul');
     taskList.className = 'bullet';
     (day.tasks || []).forEach((t) => {
       const li = document.createElement('li');
-      li.textContent = `${t.done ? '✅' : '⬜'} ${t.title}`;
+      li.textContent = `✅ ${t.title}`;
       taskList.append(li);
     });
-    tasksBlock.append(tasksProgress, taskList);
+    tasksBlock.append(taskList);
     wrap.append(tasksBlock);
 
     const journalBlock = document.createElement('div');
@@ -732,7 +688,18 @@
       timer.dataset.timer = quit.date;
       timer.textContent = '';
 
-      row.append(left, timer);
+      const reset = document.createElement('button');
+      reset.type = 'button';
+      reset.className = 'ghost';
+      reset.textContent = 'Reset';
+      reset.addEventListener('click', () => {
+        if (!confirm('Reset this quit timer to today?')) return;
+        quit.date = today();
+        saveState();
+        renderQuitList();
+      });
+
+      row.append(left, timer, reset);
       dom.quitList.append(row);
     });
     updateQuitTimers();
@@ -761,17 +728,8 @@
     });
   };
 
-  const clampMonth = (date) => {
-    const min = new Date('2025-12-01');
-    if (date < min) return min;
-    return date;
-  };
-
-  const changeMonth = (delta) => {
-    const base = new Date(state.currentMonth);
-    base.setMonth(base.getMonth() + delta);
-    const clamped = clampMonth(base);
-    state.currentMonth = clamped.toISOString().slice(0, 10);
+  const changeYear = (year) => {
+    state.currentYear = year;
     saveState();
     renderHistory();
   };
@@ -898,7 +856,7 @@
         const title = dom.taskInput.value.trim();
         if (!title) return;
         const day = getDay(today());
-        day.tasks.push({ id: randomId(), title, done: false });
+        day.tasks.push({ id: randomId(), title, created: Date.now() });
         dom.taskInput.value = '';
         saveState();
         renderTasks();
@@ -909,7 +867,7 @@
     if (dom.clearDone) {
       dom.clearDone.addEventListener('click', () => {
         const day = getDay(today());
-        day.tasks = day.tasks.filter((t) => !t.done);
+        day.tasks = [];
         saveState();
         renderTasks();
         renderHistory();
@@ -958,8 +916,9 @@
       });
     }
 
-    if (dom.prevMonth) dom.prevMonth.addEventListener('click', () => changeMonth(-1));
-    if (dom.nextMonth) dom.nextMonth.addEventListener('click', () => changeMonth(1));
+    if (dom.yearPicker) {
+      dom.yearPicker.addEventListener('change', () => changeYear(Number(dom.yearPicker.value)));
+    }
     if (dom.dayDetail && document.getElementById('close-detail')) {
       document.getElementById('close-detail').addEventListener('click', () => dom.dayDetail.close());
     }
@@ -1058,6 +1017,19 @@
         const meta = document.createElement('div');
         meta.className = 'meta';
         meta.textContent = `Quit on ${formatDate(quit.date, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        const actions = document.createElement('div');
+        actions.className = 'row';
+        const reset = document.createElement('button');
+        reset.type = 'button';
+        reset.className = 'ghost';
+        reset.textContent = 'Reset';
+        reset.addEventListener('click', () => {
+          if (!confirm('Reset this quit timer to today?')) return;
+          quit.date = today();
+          saveState();
+          renderQuitLibrary();
+          renderQuitList();
+        });
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'ghost';
@@ -1066,8 +1038,10 @@
           state.quits = state.quits.filter((q) => q.id !== quit.id);
           saveState();
           renderQuitLibrary();
+          renderQuitList();
         });
-        row.append(name, meta, remove);
+        actions.append(reset, remove);
+        row.append(name, meta, actions);
         dom.quitLibrary.append(row);
       });
     };
