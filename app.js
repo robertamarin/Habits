@@ -2,10 +2,21 @@
   const STORAGE_KEY = 'habitFreshV1';
   const PAGE = document.body.dataset.page || 'home';
   const today = () => new Date().toISOString().slice(0, 10);
+  const dayKey = (value = new Date()) => {
+    const d = new Date(value);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().slice(0, 10);
+  };
   const startOfDayIso = (value = new Date()) => {
     const d = new Date(value);
     d.setHours(0, 0, 0, 0);
     return d.toISOString();
+  };
+  const startOfMonthKey = (value = new Date()) => {
+    const d = new Date(value);
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().slice(0, 10);
   };
   const randomId = () => (crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
@@ -19,7 +30,9 @@
     goals: [],
     currentYear: new Date().getFullYear(),
     hiddenSections: [],
-    focusMode: false
+    focusMode: false,
+    heatmapFilter: 'all',
+    monthCursor: startOfMonthKey()
   });
 
   const loadState = () => {
@@ -35,10 +48,26 @@
 
   const state = loadState();
 
+  const seedHabitCreationDates = () => {
+    const earliestById = {};
+    Object.keys(state.days || {}).forEach((date) => {
+      const day = state.days[date];
+      Object.keys(day?.habits || {}).forEach((id) => {
+        if (!earliestById[id] || date < earliestById[id]) earliestById[id] = date;
+      });
+    });
+    state.habits.forEach((habit) => {
+      if (!habit.created) habit.created = earliestById[habit.id] || today();
+    });
+  };
+
+  seedHabitCreationDates();
+
   const saveState = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   const refreshFromStorage = (payload) => {
     const next = payload || loadState();
     Object.assign(state, defaultState(), next);
+    seedHabitCreationDates();
     renderTitle();
     applyTheme();
     applyAccent();
@@ -53,7 +82,6 @@
     progressValue: document.getElementById('progress-value'),
     ringSubtext: document.getElementById('ring-subtext'),
     milestoneLabel: document.querySelector('.milestone-label'),
-    weekTrend: document.getElementById('week-trend'),
     streakRing: document.getElementById('streak-ring'),
     streakFill: document.querySelector('#streak-ring .ring-fill'),
     summaryHabits: document.getElementById('summary-habits'),
@@ -72,7 +100,6 @@
     taskInput: document.getElementById('task-input'),
     taskList: document.getElementById('task-list'),
     taskCount: document.getElementById('task-count'),
-    clearDone: document.getElementById('clear-done'),
     habitForm: document.getElementById('habit-form'),
     habitInput: document.getElementById('habit-input'),
     habitCadence: document.getElementById('habit-cadence'),
@@ -90,6 +117,11 @@
     dreamTitle: document.getElementById('dream-title'),
     dreamText: document.getElementById('dream-text'),
     dreamList: document.getElementById('dream-list'),
+    ideaForm: document.getElementById('idea-form'),
+    ideaTitle: document.getElementById('idea-title'),
+    ideaText: document.getElementById('idea-text'),
+    ideaList: document.getElementById('idea-list'),
+    ideaSaved: document.getElementById('idea-saved'),
     reset: document.getElementById('reset-data'),
     themeToggle: document.getElementById('theme-toggle'),
     history: document.getElementById('history'),
@@ -104,8 +136,12 @@
     focusTime: document.getElementById('focus-time'),
     bestDay: document.getElementById('best-day'),
     quitList: document.getElementById('quit-list'),
+    quitManageList: document.getElementById('quit-manage-list'),
     emptyQuit: document.getElementById('empty-quit'),
     calendarMonth: document.getElementById('calendar-month'),
+    prevMonth: document.getElementById('prev-month'),
+    nextMonth: document.getElementById('next-month'),
+    heatmapFilter: document.getElementById('heatmap-filter'),
     dayDetail: document.getElementById('day-detail'),
     detailDate: document.getElementById('detail-date'),
     dayBreakdown: document.querySelector('.day-breakdown'),
@@ -121,18 +157,18 @@
     momentumBar: document.querySelector('.meter-bar span'),
     exportData: document.getElementById('export-data'),
     exportCsv: document.getElementById('export-csv'),
-    importData: document.getElementById('import-data'),
+    importJson: document.getElementById('import-json'),
+    importCsv: document.getElementById('import-csv'),
     importFile: document.getElementById('import-file'),
     journalSaved: document.getElementById('journal-saved'),
     dreamSaved: document.getElementById('dream-saved'),
     goalForm: document.getElementById('goal-form'),
     goalInput: document.getElementById('goal-input'),
     goalList: document.getElementById('goal-list'),
+    goalManageList: document.getElementById('goal-manage-list'),
     quitForm: document.getElementById('quit-form'),
     quitName: document.getElementById('quit-name'),
     quitDate: document.getElementById('quit-date'),
-    quitCard: document.querySelector('.quit-card'),
-    quitCta: document.getElementById('quit-cta'),
     journalCard: document.querySelector('.journal-card'),
     notesCta: document.getElementById('notes-cta')
   };
@@ -143,12 +179,13 @@
 
   const getDay = (date) => {
     if (!state.days[date]) {
-      state.days[date] = { habits: {}, tasks: [], journal: [], dreams: [] };
+      state.days[date] = { habits: {}, tasks: [], journal: [], dreams: [], ideas: [] };
     } else {
       state.days[date].dreams = state.days[date].dreams || [];
       state.days[date].journal = state.days[date].journal || [];
       state.days[date].tasks = state.days[date].tasks || [];
       state.days[date].habits = state.days[date].habits || {};
+      state.days[date].ideas = state.days[date].ideas || [];
     }
     return state.days[date];
   };
@@ -164,6 +201,16 @@
     return true;
   };
 
+  const isHabitActiveOn = (habit, dateValue) => {
+    const target = typeof dateValue === 'string' ? dateValue : dayKey(dateValue);
+    const created = habit.created ? dayKey(habit.created) : null;
+    if (created && created > target) return false;
+    return shouldShowHabitToday(habit, target);
+  };
+
+  const activeHabitsForDate = (dateValue, filterId = 'all') =>
+    state.habits.filter((h) => (filterId === 'all' ? true : h.id === filterId) && isHabitActiveOn(h, dateValue));
+
   const dateKeysBack = (count) => Array.from({ length: count }).map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
@@ -172,7 +219,7 @@
 
   const habitDoneOnDate = (habit, dateValue) => {
     const day = state.days[dateValue];
-    if (!shouldShowHabitToday(habit, dateValue)) return null;
+    if (!isHabitActiveOn(habit, dateValue)) return null;
     return Boolean(day && day.habits && day.habits[habit.id]);
   };
 
@@ -185,7 +232,7 @@
   };
 
   const hasActivity = (day) =>
-    Boolean(day && (Object.keys(day.habits || {}).length || (day.tasks || []).length || (day.journal || []).length || (day.dreams || []).length));
+    Boolean(day && (Object.keys(day.habits || {}).length || (day.tasks || []).length || (day.journal || []).length || (day.dreams || []).length || (day.ideas || []).length));
 
   const updateDayPickerVisibility = () => {
     if (!dom.dayPicker || !dom.habitCadence) return;
@@ -194,12 +241,10 @@
   };
 
   const completionLevel = (percent, hasHabits, hasData = true) => {
-    if (!hasData) return 0;
-    if (!hasHabits) return 1;
-    if (percent === 0) return 1;
-    if (percent <= 35) return 1;
-    if (percent <= 65) return 2;
-    if (percent < 100) return 3;
+    if (!hasData || !hasHabits || percent === null) return 0;
+    if (percent >= 95) return 1;
+    if (percent >= 70) return 2;
+    if (percent >= 35) return 3;
     return 4;
   };
 
@@ -252,7 +297,7 @@
     if (!dom.habitList) return;
     const date = today();
     const day = getDay(date);
-    const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
+    const todayHabits = activeHabitsForDate(date);
 
     dom.habitList.innerHTML = '';
     if (!todayHabits.length) {
@@ -520,6 +565,7 @@
       dom.libraryList.append(item);
     });
     renderDashboardSummary();
+    renderHeatmapFilter();
   };
 
   const renderJournal = () => {
@@ -621,7 +667,7 @@
       const d = new Date();
       d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
-      const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, key));
+      const todayHabits = activeHabitsForDate(key);
       const day = state.days[key];
       if (!day && !todayHabits.length) continue;
       if (!day) break;
@@ -642,9 +688,8 @@
     let longest = 0;
     let current = 0;
     dates.forEach((date) => {
-      const todaysHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
+      const todaysHabits = activeHabitsForDate(date);
       if (!todaysHabits.length) {
-        current = 0;
         return;
       }
       const day = state.days[date];
@@ -666,7 +711,7 @@
       const d = new Date(start);
       d.setDate(start.getDate() - i);
       const key = d.toISOString().slice(0, 10);
-      const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, key));
+      const todayHabits = activeHabitsForDate(key);
       const day = state.days[key];
       if (!day && !todayHabits.length) continue;
       if (!day) break;
@@ -682,12 +727,12 @@
     return streak;
   };
 
-  const dayCompletion = (date) => {
+  const dayCompletion = (date, filterId = 'all') => {
     const day = state.days[date];
-    const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
-    const total = todayHabits.length;
-    const done = day ? todayHabits.filter((h) => day.habits && day.habits[h.id]).length : 0;
-    if (!total) return 0;
+    const todaysHabits = activeHabitsForDate(date, filterId);
+    const total = todaysHabits.length;
+    const done = day ? todaysHabits.filter((h) => day.habits && day.habits[h.id]).length : 0;
+    if (!total) return null;
     return Math.round((done / total) * 100);
   };
 
@@ -701,7 +746,7 @@
     if (!dom.progressFill) return;
     const date = today();
     const day = getDay(date);
-    const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
+    const todayHabits = activeHabitsForDate(date);
     const total = todayHabits.length;
     const done = todayHabits.filter((h) => day.habits[h.id]).length;
     const percent = total ? Math.round((done / total) * 100) : 0;
@@ -752,16 +797,20 @@
   const renderStats = () => {
     if (!dom.momentum) return;
     const dates = dateKeysBack(7);
-    const percents = dates.map((d) => dayCompletion(d));
-    const avg = Math.round(percents.reduce((a, b) => a + b, 0) / percents.length);
+    const percents = dates.map((d) => dayCompletion(d)).filter((v) => v !== null);
+    const avg = percents.length ? Math.round(percents.reduce((a, b) => a + b, 0) / percents.length) : 0;
     dom.momentum.textContent = `${avg}%`;
 
-    const todayPercent = percents[0];
-    const yesterday = percents[1] || 0;
+    const todayPercent = dayCompletion(today()) ?? 0;
+    const yesterday = dayCompletion(dateKeysBack(2)[1]) ?? 0;
     const diff = todayPercent - yesterday;
     if (dom.pace) dom.pace.textContent = diff === 0 ? 'Even' : `${diff > 0 ? '+' : ''}${diff}%`;
 
-    const best = Object.keys(state.days).reduce((max, key) => Math.max(max, dayCompletion(key)), 0);
+    const best = Object.keys(state.days).reduce((max, key) => {
+      const value = dayCompletion(key);
+      if (value === null) return max;
+      return Math.max(max, value);
+    }, 0);
     if (dom.bestDay) dom.bestDay.textContent = `${best}%`;
 
     if (dom.focusTime) {
@@ -771,19 +820,6 @@
     }
     if (dom.momentumBar) dom.momentumBar.style.width = `${avg}%`;
 
-    if (dom.weekTrend) {
-      dom.weekTrend.innerHTML = '';
-      const chronDates = [...dates].reverse();
-      [...percents].reverse().forEach((value, idx) => {
-        const bar = document.createElement('span');
-        const height = Math.max(6, (value / 100) * 32);
-        bar.style.height = `${height}px`;
-        const tone = value >= 80 ? 'var(--accent-strong)' : value >= 50 ? 'var(--accent)' : '#ef6c63';
-        bar.style.background = tone;
-        bar.title = `${formatDate(chronDates[idx], { weekday: 'short', month: 'short', day: 'numeric' })}: ${value}%`;
-        dom.weekTrend.append(bar);
-      });
-    }
   };
 
   const renderWeekly = () => {
@@ -803,7 +839,7 @@
     });
     dom.weeklyBars.innerHTML = '';
     const percents = dates.map((date) => dayCompletion(date));
-    const hasData = percents.some((p) => p > 0);
+    const hasData = percents.some((p) => p !== null);
     percents.forEach((percent, index) => {
       const date = dates[index];
       const row = document.createElement('div');
@@ -815,12 +851,15 @@
       track.className = 'week-track';
       const fill = document.createElement('span');
       fill.className = 'week-fill';
-      fill.style.width = `${percent}%`;
-      fill.title = `${formatDate(date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${percent}% complete`;
+      const safePercent = percent ?? 0;
+      fill.style.width = `${safePercent}%`;
+      fill.title = percent === null
+        ? `${formatDate(date, { weekday: 'long', month: 'short', day: 'numeric' })}: No active habits`
+        : `${formatDate(date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${percent}% complete`;
       track.append(fill);
       const value = document.createElement('div');
       value.className = 'week-value';
-      value.textContent = `${percent}%`;
+      value.textContent = percent === null ? '—' : `${percent}%`;
       row.append(label, track, value);
       dom.weeklyBars.append(row);
     });
@@ -828,14 +867,16 @@
     const sparkline = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     sparkline.setAttribute('viewBox', '0 0 140 40');
     sparkline.classList.add('sparkline');
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    const mapped = percents.map((v, i) => {
-      const x = (i / (percents.length - 1)) * 140;
-      const y = 36 - (v / 100) * 32;
-      return `${x},${y}`;
-    });
-    path.setAttribute('d', `M${mapped.join(' L')}`);
-    sparkline.append(path);
+    if (percents.length > 1) {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const mapped = percents.map((v, i) => {
+        const x = (i / (percents.length - 1)) * 140;
+        const y = 36 - ((v ?? 0) / 100) * 32;
+        return `${x},${y}`;
+      });
+      path.setAttribute('d', `M${mapped.join(' L')}`);
+      sparkline.append(path);
+    }
     if (hasData) dom.weeklyBars.classList.add('has-data');
     else dom.weeklyBars.classList.remove('has-data');
     dom.weeklyBars.append(sparkline);
@@ -843,13 +884,16 @@
 
   const renderMonthly = () => {
     if (!dom.monthlyStrip) return;
+    renderHeatmapFilter();
     dom.monthlyStrip.innerHTML = '';
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
+    const rawMonth = new Date(state.monthCursor || startOfMonthKey());
+    const monthStart = Number.isNaN(rawMonth.getTime()) ? new Date(startOfMonthKey()) : rawMonth;
+    monthStart.setDate(1);
+    const year = monthStart.getFullYear();
+    const month = monthStart.getMonth();
     const start = new Date(year, month, 1);
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(now);
+    const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(monthStart);
     if (dom.calendarMonth) dom.calendarMonth.textContent = monthLabel;
     const leadingBlanks = start.getDay();
     for (let i = 0; i < leadingBlanks; i++) {
@@ -859,16 +903,18 @@
       dom.monthlyStrip.append(spacer);
     }
 
+    const filterId = state.heatmapFilter || 'all';
+
     for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
       const dateObj = new Date(year, month, dayNum);
-      const date = dateObj.toISOString().slice(0, 10);
-      const percent = dayCompletion(date);
-      const todaysHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
+      const date = dayKey(dateObj);
+      const todaysHabits = activeHabitsForDate(date, filterId);
       const hasHabits = todaysHabits.length > 0;
       const dayState = state.days[date];
       const done = todaysHabits.filter((h) => dayState?.habits?.[h.id]).length;
       const wins = (dayState?.tasks || []).length;
       const hasData = hasActivity(dayState);
+      const percent = hasHabits ? Math.round((done / todaysHabits.length) * 100) : null;
       const level = completionLevel(percent, hasHabits, hasData);
 
       const button = document.createElement('button');
@@ -876,8 +922,11 @@
       button.dataset.level = String(level);
       button.textContent = String(dayNum);
       if (date === today()) button.classList.add('today');
-      const habitLabel = hasHabits ? `${done}/${todaysHabits.length} habits` : 'No habits scheduled';
-      button.title = `${formatDate(date, { month: 'short', day: 'numeric' })}: ${habitLabel} · ${wins} wins`;
+      const habitLabel = hasHabits
+        ? `${done}/${todaysHabits.length} habits`
+        : 'No active habits';
+      const percentLabel = percent === null ? '' : ` · ${percent}%`;
+      button.title = `${formatDate(date, { month: 'short', day: 'numeric' })}: ${habitLabel}${percentLabel} · ${wins} wins`;
       button.setAttribute('aria-label', `${formatDate(date, { weekday: 'long', month: 'long', day: 'numeric' })}: ${habitLabel}`);
       button.addEventListener('click', () => openDayDetail(date));
       dom.monthlyStrip.append(button);
@@ -891,6 +940,39 @@
       spacer.setAttribute('aria-hidden', 'true');
       dom.monthlyStrip.append(spacer);
     }
+  };
+
+  const renderHeatmapFilter = () => {
+    if (!dom.heatmapFilter) return;
+    const current = state.heatmapFilter || 'all';
+    dom.heatmapFilter.innerHTML = '';
+    const allOption = document.createElement('option');
+    allOption.value = 'all';
+    allOption.textContent = 'All';
+    dom.heatmapFilter.append(allOption);
+    state.habits.forEach((habit) => {
+      const opt = document.createElement('option');
+      opt.value = habit.id;
+      opt.textContent = habit.name;
+      dom.heatmapFilter.append(opt);
+    });
+    const exists = current === 'all' || state.habits.some((h) => h.id === current);
+    dom.heatmapFilter.value = exists ? current : 'all';
+    state.heatmapFilter = dom.heatmapFilter.value;
+  };
+
+  const changeMonth = (delta) => {
+    const baseRaw = new Date(state.monthCursor || startOfMonthKey());
+    const base = Number.isNaN(baseRaw.getTime()) ? new Date(startOfMonthKey()) : baseRaw;
+    base.setDate(1);
+    base.setMonth(base.getMonth() + delta);
+    const todayStart = new Date();
+    todayStart.setDate(1);
+    todayStart.setHours(0, 0, 0, 0);
+    if (base > todayStart) base.setTime(todayStart.getTime());
+    state.monthCursor = startOfMonthKey(base);
+    saveState();
+    renderMonthly();
   };
 
   const renderHistory = () => {
@@ -930,12 +1012,12 @@
         return d.toISOString().slice(0, 10);
       });
       dates.forEach((date) => {
-        const todaysHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
+        const todaysHabits = activeHabitsForDate(date);
         const total = todaysHabits.length;
         const day = state.days[date];
         const hasData = hasActivity(day);
         const done = todaysHabits.filter((h) => day?.habits?.[h.id]).length;
-        const percent = total ? Math.round((done / total) * 100) : 0;
+        const percent = total ? Math.round((done / total) * 100) : null;
         const tile = document.createElement('button');
         tile.type = 'button';
         tile.className = 'day-tile';
@@ -944,7 +1026,7 @@
         heading.textContent = formatDate(date, { month: 'short', day: 'numeric' });
         const stats = document.createElement('div');
         stats.className = 'meta';
-        stats.textContent = total ? `${done}/${total} habits` : 'No data';
+        stats.textContent = total ? `${done}/${total} habits` : 'No active habits';
         const wins = (day?.tasks || []).length;
         tile.title = `Habits: ${done}/${total || 0}\nWins: ${wins}\nStreak: ${streakThrough(date)}d`;
         tile.append(heading, stats);
@@ -962,12 +1044,12 @@
     });
 
     dates.forEach((date) => {
-      const todaysHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
+      const todaysHabits = activeHabitsForDate(date);
       const total = todaysHabits.length;
       const day = state.days[date];
       const hasData = hasActivity(day);
       const done = todaysHabits.filter((h) => day?.habits?.[h.id]).length;
-      const percent = total ? Math.round((done / total) * 100) : 0;
+      const percent = total ? Math.round((done / total) * 100) : null;
       const tile = document.createElement('button');
       tile.type = 'button';
       tile.className = 'day-tile';
@@ -977,7 +1059,7 @@
       heading.textContent = formatDate(date, { month: 'short', day: 'numeric' });
       const stats = document.createElement('div');
       stats.className = 'meta';
-      stats.textContent = total ? `${percent}%` : 'No data';
+      stats.textContent = total && percent !== null ? `${percent}%` : 'No active habits';
       const wins = (day?.tasks || []).length;
       tile.title = `Habits: ${done}/${total || 0}\nWins: ${wins}\nStreak: ${streakThrough(date)}d`;
 
@@ -985,6 +1067,50 @@
       tile.addEventListener('click', () => openDayDetail(date));
       dom.history.append(tile);
     });
+  };
+
+  const renderIdeas = () => {
+    if (!dom.ideaList) return;
+    const date = today();
+    const day = getDay(date);
+    if (dom.ideaSaved) dom.ideaSaved.textContent = day.ideas.length ? 'Saved' : 'Unsaved';
+    if (dom.ideaSaved) dom.ideaSaved.classList.toggle('badge', day.ideas.length > 0);
+    dom.ideaList.innerHTML = '';
+    if (!day.ideas.length) {
+      dom.ideaList.innerHTML = '<div class="empty">No ideas yet</div>';
+      return;
+    }
+    day.ideas
+      .slice()
+      .sort((a, b) => b.created - a.created)
+      .forEach((entry) => {
+        const item = document.createElement('div');
+        item.className = 'journal-item';
+        const content = document.createElement('div');
+        const title = document.createElement('h4');
+        title.textContent = entry.title || 'Idea';
+        const text = document.createElement('p');
+        text.textContent = entry.text;
+        content.append(title, text);
+
+        const time = document.createElement('span');
+        time.className = 'meta';
+        time.textContent = new Date(entry.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'ghost';
+        remove.textContent = 'Delete';
+        remove.addEventListener('click', () => {
+          day.ideas = day.ideas.filter((j) => j.id !== entry.id);
+          saveState();
+          renderIdeas();
+          renderHistory();
+        });
+
+        item.append(content, time, remove);
+        dom.ideaList.append(item);
+      });
   };
 
   const openDayDetail = (date, focusSection) => {
@@ -997,10 +1123,11 @@
 
     const habitsBlock = document.createElement('div');
     habitsBlock.className = 'panelish';
-    const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
+    const todayHabits = activeHabitsForDate(date);
     const done = todayHabits.filter((h) => day.habits[h.id]).length;
-    const habitsPercent = dayCompletion(date);
-    habitsBlock.innerHTML = `<h4 id="detail-habits">Habits</h4><p class="muted">${done}/${todayHabits.length || 0} done (${habitsPercent}%)</p>`;
+    const habitsPercent = dayCompletion(date) ?? 0;
+    const habitsLabel = todayHabits.length ? `${done}/${todayHabits.length || 0} done (${habitsPercent}%)` : 'No active habits';
+    habitsBlock.innerHTML = `<h4 id="detail-habits">Habits</h4><p class="muted">${habitsLabel}</p>`;
     const habitsProgress = document.createElement('div');
     habitsProgress.className = 'tiny-progress';
     const habitsFill = document.createElement('span');
@@ -1065,6 +1192,27 @@
     }
     wrap.append(dreamBlock);
 
+    const ideaBlock = document.createElement('div');
+    ideaBlock.className = 'panelish';
+    ideaBlock.innerHTML = '<h4 id="detail-ideas">Ideas</h4>';
+    if (!day.ideas.length) {
+      ideaBlock.append(spanMuted('No ideas captured'));
+    } else {
+      day.ideas.forEach((entry) => {
+        const div = document.createElement('div');
+        div.className = 'note-line';
+        div.textContent = `${entry.title || 'Idea'} — ${entry.text}`;
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'chip ghost';
+        open.textContent = 'Open idea';
+        open.addEventListener('click', () => showEntryModal(entry.title || 'Idea', entry.text));
+        div.append(open);
+        ideaBlock.append(div);
+      });
+    }
+    wrap.append(ideaBlock);
+
     dom.dayBreakdown.innerHTML = '';
     dom.dayBreakdown.append(wrap);
     dom.dayDetail.showModal();
@@ -1102,18 +1250,7 @@
   };
 
   const renderQuitList = () => {
-    if (!dom.quitList) return;
-    dom.quitList.innerHTML = '';
-    if (!state.quits.length) {
-      if (dom.emptyQuit) dom.emptyQuit.classList.remove('hidden');
-      if (dom.quitCard) dom.quitCard.classList.add('collapsed');
-      if (dom.quitCta) dom.quitCta.classList.remove('hidden');
-      return;
-    }
-    if (dom.emptyQuit) dom.emptyQuit.classList.add('hidden');
-    if (dom.quitCard) dom.quitCard.classList.remove('collapsed');
-    if (dom.quitCta) dom.quitCta.classList.add('hidden');
-    state.quits.forEach((quit) => {
+    const buildRow = (quit, allowReset = false) => {
       const row = document.createElement('div');
       row.className = 'quit-row';
       row.dataset.date = quit.date;
@@ -1125,81 +1262,124 @@
       const quitDateText = formatDate(quit.date, { month: 'long', day: 'numeric', year: 'numeric' });
       const quitDate = document.createElement('span');
       quitDate.textContent = `Quit on ${quitDateText}`;
-      const sep = document.createElement('span');
-      sep.textContent = '·';
       const timer = document.createElement('span');
       timer.className = 'elapsed';
       timer.dataset.timer = quit.date;
       timer.dataset.dateLabel = quitDateText;
       timer.textContent = '';
       timer.title = 'Time since quitting';
-      meta.append(quitDate, sep, timer);
+      meta.append(quitDate, timer);
       left.append(name, meta);
 
-      const reset = document.createElement('button');
-      reset.type = 'button';
-      reset.textContent = 'Reset';
-      reset.addEventListener('click', () => {
-        if (!confirm('Reset this quit timer to today?')) return;
-        quit.date = startOfDayIso();
-        saveState();
-        renderQuitList();
-      });
+      if (allowReset) {
+        const reset = document.createElement('button');
+        reset.type = 'button';
+        reset.textContent = 'Reset';
+        reset.addEventListener('click', () => {
+          if (!confirm('Reset this quit timer to today?')) return;
+          quit.date = startOfDayIso();
+          saveState();
+          renderQuitList();
+        });
+        row.append(left, reset);
+      } else {
+        row.append(left);
+      }
+      return row;
+    };
 
-      row.append(left, reset);
-      dom.quitList.append(row);
-    });
+    if (dom.quitList) {
+      dom.quitList.innerHTML = '';
+      if (!state.quits.length) {
+        if (dom.emptyQuit) dom.emptyQuit.classList.remove('hidden');
+      } else {
+        if (dom.emptyQuit) dom.emptyQuit.classList.add('hidden');
+        state.quits.forEach((quit) => dom.quitList.append(buildRow(quit, false)));
+      }
+    }
+
+    if (dom.quitManageList) {
+      dom.quitManageList.innerHTML = '';
+      if (!state.quits.length) {
+        dom.quitManageList.innerHTML = '<div class="empty">No retired habits yet.</div>';
+      } else {
+        state.quits.forEach((quit) => dom.quitManageList.append(buildRow(quit, true)));
+      }
+    }
+
     updateQuitTimers();
   };
 
   const renderGoals = () => {
-    if (!dom.goalList) return;
-    dom.goalList.innerHTML = '';
-    if (!state.goals.length) {
-      dom.goalList.innerHTML = '<div class="empty">Add your big targets for 2026.</div>';
-      renderDashboardSummary();
-      return;
-    }
-    state.goals
+    const sortedGoals = state.goals
       .slice()
-      .sort((a, b) => b.created - a.created)
-      .forEach((goal) => {
-        const row = document.createElement('div');
-        row.className = 'goal-row';
-        const title = document.createElement('strong');
-        title.textContent = goal.title;
-        const meta = document.createElement('div');
-        meta.className = 'meta';
-        const createdDate = goal.created ? new Date(goal.created) : new Date();
-        meta.textContent = formatDate(createdDate.toISOString().slice(0, 10));
-        const actions = document.createElement('div');
-        actions.className = 'row';
-        const edit = document.createElement('button');
-        edit.type = 'button';
-        edit.className = 'ghost';
-        edit.textContent = 'Edit';
-        edit.addEventListener('click', () => {
-          const next = prompt('Update your goal', goal.title);
-          if (!next || !next.trim()) return;
-          goal.title = next.trim();
-          saveState();
-          renderGoals();
-          renderDashboardSummary();
+      .sort((a, b) => (b.created || 0) - (a.created || 0));
+
+    if (dom.goalList) {
+      dom.goalList.innerHTML = '';
+      if (!sortedGoals.length) {
+        dom.goalList.innerHTML = '<div class="empty">No goals logged yet.</div>';
+      } else {
+        sortedGoals.forEach((goal) => {
+          const row = document.createElement('div');
+          row.className = 'goal-row view-only';
+          const title = document.createElement('strong');
+          title.textContent = goal.title;
+          const meta = document.createElement('div');
+          meta.className = 'meta';
+          const createdDate = goal.created ? new Date(goal.created) : new Date();
+          meta.textContent = formatDate(createdDate.toISOString().slice(0, 10));
+          row.append(title, meta);
+          dom.goalList.append(row);
         });
-        const remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'ghost';
-        remove.textContent = 'Delete';
-        remove.addEventListener('click', () => {
-          state.goals = state.goals.filter((g) => g.id !== goal.id);
-          saveState();
-          renderGoals();
-          renderDashboardSummary();
+      }
+    }
+
+    if (dom.goalManageList) {
+      dom.goalManageList.innerHTML = '';
+      if (!sortedGoals.length) {
+        dom.goalManageList.innerHTML = '<div class="empty">Add your big targets for 2026.</div>';
+      } else {
+        sortedGoals.forEach((goal) => {
+          const row = document.createElement('div');
+          row.className = 'goal-row';
+          const title = document.createElement('strong');
+          title.textContent = goal.title;
+          const meta = document.createElement('div');
+          meta.className = 'meta';
+          const createdDate = goal.created ? new Date(goal.created) : new Date();
+          meta.textContent = formatDate(createdDate.toISOString().slice(0, 10));
+          const actions = document.createElement('div');
+          actions.className = 'row';
+          const edit = document.createElement('button');
+          edit.type = 'button';
+          edit.className = 'ghost';
+          edit.textContent = 'Edit';
+          edit.addEventListener('click', () => {
+            const next = prompt('Update your goal', goal.title);
+            if (!next || !next.trim()) return;
+            goal.title = next.trim();
+            saveState();
+            renderGoals();
+            renderDashboardSummary();
+          });
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'ghost';
+          remove.textContent = 'Delete';
+          remove.addEventListener('click', () => {
+            state.goals = state.goals.filter((g) => g.id !== goal.id);
+            saveState();
+            renderGoals();
+            renderDashboardSummary();
+          });
+          actions.append(edit, remove);
+          row.append(title, meta, actions);
+          dom.goalManageList.append(row);
         });
-        actions.append(edit, remove);
-        row.append(title, meta, actions);
-        dom.goalList.append(row);
-      });
+      }
+    }
+
     renderDashboardSummary();
   };
 
@@ -1209,7 +1389,7 @@
     const longest = computeLongestStreak();
     if (dom.summaryStreak) dom.summaryStreak.textContent = `${streakCount}d`;
     if (dom.summaryLongest) dom.summaryLongest.textContent = `${longest}d`;
-    const percent = todayPercent ?? dayCompletion(today());
+    const percent = todayPercent ?? (dayCompletion(today()) ?? 0);
     if (dom.summaryRate) dom.summaryRate.textContent = `${percent}%`;
     const day = getDay(today());
     const winsCount = wins ?? day.tasks.length;
@@ -1249,12 +1429,21 @@
     applyHiddenSections();
     applyFocusMode();
     syncHiddenSectionToggles();
+    const currentMonthStart = startOfMonthKey();
+    const chosenMonth = state.monthCursor || currentMonthStart;
+    const cursorDate = new Date(chosenMonth);
+    const clampDate = new Date(currentMonthStart);
+    cursorDate.setHours(0, 0, 0, 0);
+    if (cursorDate > clampDate) state.monthCursor = currentMonthStart;
+    state.monthCursor = state.monthCursor || currentMonthStart;
+    renderHeatmapFilter();
     if (dom.quitDate) dom.quitDate.value = today();
     renderChecklist();
     renderTasks();
     renderLibrary();
     renderJournal();
     renderDreams();
+    renderIdeas();
     renderQuitList();
     renderGoals();
     renderHistory();
@@ -1286,7 +1475,7 @@
           existing.color = color;
         }
       } else {
-        const habit = { id: randomId(), name, cadence, days, icon, color };
+        const habit = { id: randomId(), name, cadence, days, icon, color, created: today() };
         state.habits.push(habit);
       }
       dom.habitInput.value = '';
@@ -1439,8 +1628,17 @@
     dom.exportCsv.addEventListener('click', exportCsvData);
   }
 
-  if (dom.importData && dom.importFile) {
-    dom.importData.addEventListener('click', () => dom.importFile.click());
+  const triggerImport = (mode) => {
+    if (!dom.importFile) return;
+    dom.importFile.dataset.mode = mode;
+    dom.importFile.accept = mode === 'csv' ? '.csv' : '.json,.csv';
+    dom.importFile.click();
+  };
+
+  if (dom.importJson && dom.importFile) dom.importJson.addEventListener('click', () => triggerImport('json'));
+  if (dom.importCsv && dom.importFile) dom.importCsv.addEventListener('click', () => triggerImport('csv'));
+
+  if (dom.importFile) {
     dom.importFile.addEventListener('change', (event) => {
       const file = event.target.files?.[0];
       if (!file) return;
@@ -1449,9 +1647,10 @@
         try {
           const text = String(reader.result || '');
           let payload = null;
-          if (file.name.endsWith('.json')) {
+          const mode = dom.importFile.dataset.mode;
+          if (file.name.endsWith('.json') || mode === 'json') {
             payload = JSON.parse(text);
-          } else if (file.name.endsWith('.csv')) {
+          } else if (file.name.endsWith('.csv') || mode === 'csv') {
             payload = parseCsvImport(text);
           }
           if (!payload) throw new Error('Unsupported file format');
@@ -1466,6 +1665,16 @@
         }
       };
       reader.readAsText(file);
+    });
+  }
+
+  if (dom.prevMonth) dom.prevMonth.addEventListener('click', () => changeMonth(-1));
+  if (dom.nextMonth) dom.nextMonth.addEventListener('click', () => changeMonth(1));
+  if (dom.heatmapFilter) {
+    dom.heatmapFilter.addEventListener('change', () => {
+      state.heatmapFilter = dom.heatmapFilter.value;
+      saveState();
+      renderMonthly();
     });
   }
 
@@ -1519,10 +1728,8 @@
   if (dom.markAll) {
     dom.markAll.addEventListener('click', () => {
       const day = getDay(today());
-      state.habits.forEach((h) => {
-        if (shouldShowHabitToday(h, today())) {
-          day.habits[h.id] = true;
-        }
+      activeHabitsForDate(today()).forEach((h) => {
+        day.habits[h.id] = true;
       });
       saveState();
       renderChecklist();
@@ -1548,16 +1755,6 @@
       const day = getDay(today());
       day.tasks.push({ id: randomId(), title, created: Date.now() });
       dom.taskInput.value = '';
-      saveState();
-      renderTasks();
-      renderHistory();
-    });
-  }
-
-  if (dom.clearDone) {
-    dom.clearDone.addEventListener('click', () => {
-      const day = getDay(today());
-      day.tasks = [];
       saveState();
       renderTasks();
       renderHistory();
@@ -1632,6 +1829,28 @@
       if (dom.dreamSaved) dom.dreamSaved.textContent = 'Saved';
       saveState();
       renderDreams();
+      renderHistory();
+    });
+  }
+
+  if (dom.ideaForm) {
+    dom.ideaForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const text = dom.ideaText.value.trim();
+      if (!text) return;
+      const entry = {
+        id: randomId(),
+        title: dom.ideaTitle.value.trim(),
+        text,
+        created: Date.now()
+      };
+      const day = getDay(today());
+      day.ideas.push(entry);
+      dom.ideaTitle.value = '';
+      dom.ideaText.value = '';
+      if (dom.ideaSaved) dom.ideaSaved.textContent = 'Saved';
+      saveState();
+      renderIdeas();
       renderHistory();
     });
   }
