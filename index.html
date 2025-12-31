@@ -191,15 +191,22 @@
           </section>
         </div>
 
-        <section class="card span-4 stable-card" id="mood-card" data-section="mood">
+        <section class="card span-4 stable-card compact-card" id="mood-card" data-section="mood">
           <header class="card-head">
             <div>
               <p class="eyebrow">Mood</p>
               <h3>Daily mood</h3>
-              <p class="muted">Log how you feel for the selected day.</p>
+              <p class="muted">Tap a quick face or fine-tune the dropdown.</p>
             </div>
           </header>
           <div class="stack">
+            <div class="mood-quick" id="mood-quick" aria-label="Quick mood tracker">
+              <button type="button" class="ghost mood-chip" data-mood-value="1">😞 Low</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="2">😐 Flat</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="3">🙂 Okay</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="4">😃 Good</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="5">🤩 Great</button>
+            </div>
             <label class="stacked">Mood for <span id="mood-date-label" class="muted"></span>
               <select id="mood-select" aria-label="Select mood">
                 <option value="1">😞 1 - Low</option>
@@ -209,7 +216,7 @@
                 <option value="5">🤩 5 - Great</option>
               </select>
             </label>
-            <div class="row wrap">
+            <div class="row wrap mood-actions">
               <button type="button" class="primary" id="save-mood">Save mood</button>
               <span class="badge" id="mood-status">Not saved</span>
             </div>

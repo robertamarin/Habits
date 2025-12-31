@@ -120,6 +120,9 @@ body {
 .stable-card .goal-status { flex: 1; min-height: 0; }
 .stable-card .scroll-area { max-height: none; }
 .stable-card .goal-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.compact-card { min-height: auto; max-height: none; gap: 10px; }
+.compact-card .card-head { min-height: auto; }
+.compact-card .stack { gap: 10px; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; min-height: 64px; }
 .card-head h3 { margin: 0; font-size: 20px; }
 
@@ -298,6 +301,11 @@ body {
 .goal-status .manage-note { grid-column: 1 / -1; margin: 0; text-align: center; }
 .journal-card.collapsed { display: none; }
 .mood-marker { display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-soft); font-weight: 700; font-size: 13px; }
+.mood-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.mood-chip { min-height: 0; padding: 8px 10px; border-radius: 12px; border-color: var(--border); box-shadow: none; background: var(--panel-soft); color: var(--text); }
+.mood-chip.active { background: color-mix(in srgb, var(--accent-soft) 60%, transparent); border-color: var(--accent); color: var(--accent-strong); }
+.mood-actions { align-items: center; gap: 8px; }
+.mood-actions .badge { margin-left: auto; }
 
 .dialog, dialog {
   border: 1px solid var(--border);
