@@ -33,6 +33,9 @@
           <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
             <div id="progress-bar"></div>
           </div>
+          <div class="progress-meta">
+            <span id="progress-value" class="muted"></span>
+          </div>
           <div class="legend">
             <div class="pill">
               <strong id="complete-count">0</strong>
@@ -130,30 +133,23 @@
         <header class="card-head">
           <div>
             <p class="eyebrow">Library</p>
-            <h3>Manage habits</h3>
+            <h3>Manage goals &amp; habits</h3>
           </div>
+          <a href="goals.html" class="ghost">Open goals &amp; library</a>
         </header>
-        <form id="habit-form" class="stack">
-          <input id="habit-input" type="text" placeholder="Name (Stretch, Write, Meditate)" required />
-          <label class="stacked">Cadence
-            <select id="habit-cadence">
-              <option value="daily">Every day</option>
-              <option value="weekdays">Weekdays</option>
-              <option value="custom">Specific days</option>
-            </select>
-          </label>
-          <div class="days" id="day-picker">
-            <label><input type="checkbox" value="0" />Sun</label>
-            <label><input type="checkbox" value="1" />Mon</label>
-            <label><input type="checkbox" value="2" />Tue</label>
-            <label><input type="checkbox" value="3" />Wed</label>
-            <label><input type="checkbox" value="4" />Thu</label>
-            <label><input type="checkbox" value="5" />Fri</label>
-            <label><input type="checkbox" value="6" />Sat</label>
+        <div class="stack">
+          <p class="muted">Edit your ritual library, annual goals, and quitting list from the dedicated goals page.</p>
+          <div class="row end">
+            <div class="pill">
+              <strong id="habit-total">0</strong>
+              <span class="muted">active habits</span>
+            </div>
+            <div class="pill">
+              <strong id="goal-total">0</strong>
+              <span class="muted">annual goals</span>
+            </div>
           </div>
-          <button type="submit">Add habit</button>
-        </form>
-        <div id="library" class="list"></div>
+        </div>
       </article>
 
       <article class="card">

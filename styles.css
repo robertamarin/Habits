@@ -114,6 +114,7 @@ a { color: var(--accent); }
   background: linear-gradient(120deg, var(--accent), var(--accent-2));
   transition: width 160ms ease;
 }
+.progress-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-weight: 600; }
 
 .legend { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
 .pill {
@@ -170,6 +171,12 @@ button.ghost {
   color: var(--text);
   border-color: var(--border);
   box-shadow: none;
+}
+button.chip {
+  background: transparent;
+  border-color: var(--border);
+  box-shadow: none;
+  padding: 6px 10px;
 }
 
 input, select, textarea {
@@ -233,6 +240,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); }
 .day-tile strong { font-size: 22px; }
 .tiny-progress { height: 8px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
 .tiny-progress span { display: block; height: 100%; width: 0; border-radius: inherit; }
+.tiny-progress.subtle { background: rgba(255,255,255,0.04); }
 
 .journal-item { align-items: flex-start; }
 .journal-item div { flex: 1; }
@@ -271,9 +279,19 @@ dialog {
   background: var(--panel-soft);
 }
 .note-line { color: var(--muted); margin: 4px 0; }
+.note-line .chip { margin-left: 8px; }
 .bullet { padding-left: 16px; color: var(--text); }
 
 .danger { color: #ef4444; border-color: #ef4444; }
+.chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+  color: var(--text);
+  font-weight: 700;
+}
 
 @media (max-width: 760px) {
   body { padding-top: 24px; }

@@ -29,11 +29,21 @@
   const state = loadState();
 
   const saveState = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const refreshFromStorage = (payload) => {
+    const next = payload || loadState();
+    Object.assign(state, defaultState(), next);
+    renderTitle();
+    applyTheme();
+    applyAccent();
+    if (isHome) renderAll();
+    if (renderGoalsPage) renderGoalsPage();
+  };
 
   const dom = {
     appTitle: document.getElementById('app-title'),
     todayLabel: document.getElementById('today-label'),
     progress: document.getElementById('progress-bar'),
+    progressValue: document.getElementById('progress-value'),
     habitList: document.getElementById('habit-list'),
     emptyHabits: document.getElementById('empty-habits'),
     completeCount: document.getElementById('complete-count'),
@@ -50,6 +60,8 @@
     habitInput: document.getElementById('habit-input'),
     habitCadence: document.getElementById('habit-cadence'),
     dayPicker: document.getElementById('day-picker'),
+    habitSubmit: document.getElementById('habit-submit'),
+    habitEditHint: document.getElementById('habit-edit-hint'),
     library: document.getElementById('library'),
     journalForm: document.getElementById('journal-form'),
     journalTitle: document.getElementById('journal-title'),
@@ -75,6 +87,8 @@
     bestDay: document.getElementById('best-day'),
     quitList: document.getElementById('quit-list'),
     emptyQuit: document.getElementById('empty-quit'),
+    habitTotal: document.getElementById('habit-total'),
+    goalTotal: document.getElementById('goal-total'),
     dayDetail: document.getElementById('day-detail'),
     detailDate: document.getElementById('detail-date'),
     dayBreakdown: document.querySelector('.day-breakdown'),
@@ -90,6 +104,8 @@
 
   const isHome = PAGE === 'home';
   const isGoals = PAGE === 'goals';
+  let editingHabitId = null;
+  let renderGoalsPage = null;
 
   const getDay = (date) => {
     if (!state.days[date]) {
@@ -112,6 +128,12 @@
     if (habit.cadence === 'weekdays') return day >= 1 && day <= 5;
     if (habit.cadence === 'custom') return (habit.days || []).includes(day);
     return true;
+  };
+
+  const updateDayPickerVisibility = () => {
+    if (!dom.dayPicker || !dom.habitCadence) return;
+    const custom = dom.habitCadence.value === 'custom';
+    dom.dayPicker.style.display = custom ? 'flex' : 'none';
   };
 
   const progressColor = (percent) => {
@@ -251,8 +273,10 @@
     dom.library.innerHTML = '';
     if (!state.habits.length) {
       dom.library.innerHTML = '<div class="empty">No habits yet</div>';
+      if (dom.habitTotal) dom.habitTotal.textContent = '0';
       return;
     }
+    if (dom.habitTotal) dom.habitTotal.textContent = String(state.habits.length);
 
     state.habits.forEach((habit) => {
       const item = document.createElement('div');
@@ -270,6 +294,27 @@
         : habit.cadence;
 
       block.append(title, meta);
+      const actions = document.createElement('div');
+      actions.className = 'row';
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'ghost';
+      edit.textContent = 'Edit';
+      edit.addEventListener('click', () => {
+        editingHabitId = habit.id;
+        dom.habitInput.value = habit.name;
+        dom.habitCadence.value = habit.cadence;
+        updateDayPickerVisibility();
+        if (habit.cadence === 'custom') {
+          dom.dayPicker.querySelectorAll('input').forEach((i) => {
+            i.checked = (habit.days || []).includes(Number(i.value));
+          });
+        } else {
+          dom.dayPicker.querySelectorAll('input').forEach((i) => (i.checked = false));
+        }
+        if (dom.habitSubmit) dom.habitSubmit.textContent = 'Update habit';
+        if (dom.habitEditHint) dom.habitEditHint.textContent = 'Editing existing habit';
+      });
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'ghost';
@@ -279,6 +324,12 @@
         const day = getDay(date);
         delete day.habits[habit.id];
         state.habits = state.habits.filter((h) => h.id !== habit.id);
+        if (editingHabitId === habit.id) {
+          editingHabitId = null;
+          if (dom.habitSubmit) dom.habitSubmit.textContent = 'Add habit';
+          if (dom.habitEditHint) dom.habitEditHint.textContent = 'Add to today\'s checklist';
+          if (dom.habitInput) dom.habitInput.value = '';
+        }
         saveState();
         renderChecklist();
         renderLibrary();
@@ -286,7 +337,8 @@
         renderHistory();
       });
 
-      item.append(block, remove);
+      actions.append(edit, remove);
+      item.append(block, actions);
       dom.library.append(item);
     });
   };
@@ -404,6 +456,13 @@
     return Math.round((done / total) * 100);
   };
 
+  const taskCompletion = (date) => {
+    const day = state.days[date];
+    if (!day || !day.tasks.length) return 0;
+    const done = day.tasks.filter((t) => t.done).length;
+    return Math.round((done / day.tasks.length) * 100);
+  };
+
   const renderProgress = () => {
     if (!dom.progress) return;
     const date = today();
@@ -413,9 +472,11 @@
     const done = todayHabits.filter((h) => day.habits[h.id]).length;
     const percent = Math.round((done / total) * 100);
     dom.completeCount.textContent = done;
+    const barColor = progressColor(percent);
     dom.progress.style.width = `${percent}%`;
-    dom.progress.style.background = progressColor(percent);
+    dom.progress.style.background = `linear-gradient(90deg, #ef4444 0%, ${barColor} 100%)`;
     dom.progress.parentElement.setAttribute('aria-valuenow', percent);
+    if (dom.progressValue) dom.progressValue.textContent = `${percent}% complete today`;
     dom.streak.textContent = `${computeStreak()}+`;
     dom.progress.title = `${percent}% complete`;
     renderStats();
@@ -464,6 +525,7 @@
     dates.forEach((date) => {
       const percent = dayCompletion(date);
       const day = state.days[date];
+      const tasksPercent = taskCompletion(date);
       const tasks = day ? `${day.tasks.filter((t) => t.done).length}/${(day.tasks || []).length}` : '0/0';
       const tile = document.createElement('button');
       tile.type = 'button';
@@ -481,17 +543,50 @@
       barFill.style.background = progressColor(percent);
       bar.append(barFill);
 
+      const taskBar = document.createElement('div');
+      taskBar.className = 'tiny-progress subtle';
+      const taskFill = document.createElement('span');
+      taskFill.style.width = `${tasksPercent}%`;
+      taskFill.style.background = progressColor(tasksPercent);
+      taskBar.append(taskFill);
+
       const tasksLine = document.createElement('div');
       tasksLine.className = 'meta';
-      tasksLine.textContent = `Tasks ${tasks}`;
+      tasksLine.textContent = `Tasks ${tasks} (${tasksPercent}%)`;
 
-      tile.append(heading, stats, bar, tasksLine);
+      const badges = document.createElement('div');
+      badges.className = 'chip-row';
+      if (day && day.journal && day.journal.length) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chip ghost';
+        btn.textContent = `Journal (${day.journal.length})`;
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openDayDetail(date, 'journal');
+        });
+        badges.append(btn);
+      }
+      if (day && day.dreams && day.dreams.length) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chip ghost';
+        btn.textContent = `Dream (${day.dreams.length})`;
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openDayDetail(date, 'dreams');
+        });
+        badges.append(btn);
+      }
+
+      tile.append(heading, stats, bar, taskBar, tasksLine);
+      if (badges.childElementCount) tile.append(badges);
       tile.addEventListener('click', () => openDayDetail(date));
       dom.history.append(tile);
     });
   };
 
-  const openDayDetail = (date) => {
+  const openDayDetail = (date, focusSection) => {
     if (!dom.dayDetail) return;
     const day = getDay(date);
     dom.detailDate.textContent = formatDate(date);
@@ -503,12 +598,27 @@
     habitsBlock.className = 'panelish';
     const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
     const done = todayHabits.filter((h) => day.habits[h.id]).length;
-    habitsBlock.innerHTML = `<h4>Habits</h4><p class="muted">${done}/${todayHabits.length || 0} done</p>`;
+    const habitsPercent = dayCompletion(date);
+    habitsBlock.innerHTML = `<h4 id="detail-habits">Habits</h4><p class="muted">${done}/${todayHabits.length || 0} done (${habitsPercent}%)</p>`;
+    const habitsProgress = document.createElement('div');
+    habitsProgress.className = 'tiny-progress';
+    const habitsFill = document.createElement('span');
+    habitsFill.style.width = `${habitsPercent}%`;
+    habitsFill.style.background = progressColor(habitsPercent);
+    habitsProgress.append(habitsFill);
+    habitsBlock.append(habitsProgress);
     wrap.append(habitsBlock);
 
     const tasksBlock = document.createElement('div');
     tasksBlock.className = 'panelish';
-    tasksBlock.innerHTML = '<h4>One-off wins</h4>';
+    const tasksPercent = taskCompletion(date);
+    tasksBlock.innerHTML = `<h4 id="detail-tasks">One-off wins</h4><p class="muted">${tasksPercent}% tasks complete (${day.tasks.filter((t) => t.done).length}/${(day.tasks || []).length || 0})</p>`;
+    const tasksProgress = document.createElement('div');
+    tasksProgress.className = 'tiny-progress subtle';
+    const tasksFill = document.createElement('span');
+    tasksFill.style.width = `${tasksPercent}%`;
+    tasksFill.style.background = progressColor(tasksPercent);
+    tasksProgress.append(tasksFill);
     const taskList = document.createElement('ul');
     taskList.className = 'bullet';
     (day.tasks || []).forEach((t) => {
@@ -516,12 +626,12 @@
       li.textContent = `${t.done ? '✅' : '⬜'} ${t.title}`;
       taskList.append(li);
     });
-    tasksBlock.append(taskList);
+    tasksBlock.append(tasksProgress, taskList);
     wrap.append(tasksBlock);
 
     const journalBlock = document.createElement('div');
     journalBlock.className = 'panelish';
-    journalBlock.innerHTML = '<h4>Daily reflection</h4>';
+    journalBlock.innerHTML = '<h4 id="detail-journal">Daily reflection</h4>';
     if (!day.journal.length) {
       journalBlock.append(spanMuted('No reflections yet'));
     } else {
@@ -529,6 +639,12 @@
         const div = document.createElement('div');
         div.className = 'note-line';
         div.textContent = `${entry.title || 'Untitled'} — ${entry.text}`;
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'chip ghost';
+        open.textContent = 'Open entry';
+        open.addEventListener('click', () => showEntryModal(entry.title || 'Journal entry', entry.text));
+        div.append(open);
         journalBlock.append(div);
       });
     }
@@ -536,7 +652,7 @@
 
     const dreamBlock = document.createElement('div');
     dreamBlock.className = 'panelish';
-    dreamBlock.innerHTML = '<h4>Dream log</h4>';
+    dreamBlock.innerHTML = '<h4 id="detail-dreams">Dream log</h4>';
     if (!day.dreams.length) {
       dreamBlock.append(spanMuted('No dream logged'));
     } else {
@@ -544,6 +660,12 @@
         const div = document.createElement('div');
         div.className = 'note-line';
         div.textContent = `${entry.title || 'Dream'} — ${entry.text}`;
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'chip ghost';
+        open.textContent = 'Open dream';
+        open.addEventListener('click', () => showEntryModal(entry.title || 'Dream', entry.text));
+        div.append(open);
         dreamBlock.append(div);
       });
     }
@@ -552,6 +674,30 @@
     dom.dayBreakdown.innerHTML = '';
     dom.dayBreakdown.append(wrap);
     dom.dayDetail.showModal();
+    if (focusSection) {
+      const anchor = document.getElementById(`detail-${focusSection}`);
+      if (anchor) anchor.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const showEntryModal = (title, text) => {
+    const modal = document.createElement('dialog');
+    const head = document.createElement('div');
+    head.className = 'modal-head';
+    const heading = document.createElement('h4');
+    heading.textContent = title;
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'ghost';
+    close.textContent = 'Close';
+    head.append(heading, close);
+    const body = document.createElement('p');
+    body.textContent = text;
+    modal.append(head, body);
+    modal.addEventListener('close', () => modal.remove());
+    close.addEventListener('click', () => modal.close());
+    document.body.append(modal);
+    modal.showModal();
   };
 
   const spanMuted = (text) => {
@@ -590,6 +736,11 @@
       dom.quitList.append(row);
     });
     updateQuitTimers();
+  };
+
+  const renderTotals = () => {
+    if (dom.goalTotal) dom.goalTotal.textContent = String(state.goals.length);
+    if (dom.habitTotal) dom.habitTotal.textContent = String(state.habits.length);
   };
 
   const updateQuitTimers = () => {
@@ -637,41 +788,96 @@
     renderJournal();
     renderDreams();
     renderQuitList();
+    renderTotals();
     renderHistory();
     renderProgress();
   };
 
-  // Events: Home page
-  if (isHome) {
-    if (dom.dayPicker && dom.habitCadence) {
-      dom.dayPicker.style.display = dom.habitCadence.value === 'custom' ? 'flex' : 'none';
-    }
+  // Shared habit form handling (Goals page + future use)
+  if (dom.dayPicker && dom.habitCadence) {
+    updateDayPickerVisibility();
+    dom.habitCadence.addEventListener('change', updateDayPickerVisibility);
+  }
 
-    if (dom.habitForm) {
-      dom.habitForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-        const name = dom.habitInput.value.trim();
-        if (!name) return;
-        const cadence = dom.habitCadence.value;
-        const days = Array.from(dom.dayPicker.querySelectorAll('input:checked')).map((d) => Number(d.value));
+  if (dom.habitForm) {
+    dom.habitForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = dom.habitInput.value.trim();
+      if (!name) return;
+      const cadence = dom.habitCadence.value;
+      const days = Array.from(dom.dayPicker.querySelectorAll('input:checked')).map((d) => Number(d.value));
+      if (editingHabitId) {
+        const existing = state.habits.find((h) => h.id === editingHabitId);
+        if (existing) {
+          existing.name = name;
+          existing.cadence = cadence;
+          existing.days = days;
+        }
+      } else {
         const habit = { id: randomId(), name, cadence, days };
         state.habits.push(habit);
-        dom.habitInput.value = '';
-        dom.dayPicker.querySelectorAll('input').forEach((i) => (i.checked = false));
-        saveState();
-        renderLibrary();
-        renderChecklist();
-        renderHistory();
-      });
-    }
+      }
+      dom.habitInput.value = '';
+      dom.dayPicker.querySelectorAll('input').forEach((i) => (i.checked = false));
+      editingHabitId = null;
+      if (dom.habitSubmit) dom.habitSubmit.textContent = 'Add habit';
+      if (dom.habitEditHint) dom.habitEditHint.textContent = 'Add to today\'s checklist';
+      saveState();
+      renderLibrary();
+      renderChecklist();
+      renderHistory();
+    });
+  }
 
-    if (dom.habitCadence) {
-      dom.habitCadence.addEventListener('change', () => {
-        const custom = dom.habitCadence.value === 'custom';
-        dom.dayPicker.style.display = custom ? 'flex' : 'none';
-      });
-    }
+  if (dom.reset) {
+    dom.reset.addEventListener('click', () => {
+      if (!confirm('This clears all saved habits, tasks, journals, dreams, and goals. Continue?')) return;
+      Object.assign(state, defaultState());
+      saveState();
+      renderTitle();
+      applyTheme();
+      applyAccent();
+      if (isHome) renderAll();
+      if (renderGoalsPage) renderGoalsPage();
+    });
+  }
 
+  if (dom.themeToggle) {
+    dom.themeToggle.addEventListener('change', () => {
+      state.theme = dom.themeToggle.checked ? 'light' : 'dark';
+      applyTheme();
+      saveState();
+    });
+  }
+
+  if (dom.settingsButton && dom.settingsModal) {
+    dom.settingsButton.addEventListener('click', () => {
+      dom.settingsModal.showModal();
+      if (dom.titleInput) dom.titleInput.value = state.title;
+    });
+  }
+  if (dom.closeSettings && dom.settingsModal) {
+    dom.closeSettings.addEventListener('click', () => dom.settingsModal.close());
+  }
+
+  if (dom.titleInput) {
+    dom.titleInput.addEventListener('input', () => {
+      state.title = dom.titleInput.value.trim() || defaultState().title;
+      renderTitle();
+      saveState();
+    });
+  }
+
+  if (dom.accentPicker) {
+    dom.accentPicker.addEventListener('change', () => {
+      state.accent = dom.accentPicker.value;
+      applyAccent();
+      saveState();
+    });
+  }
+
+  // Events: Home page
+  if (isHome) {
     if (dom.markAll) {
       dom.markAll.addEventListener('click', () => {
         const day = getDay(today());
@@ -752,49 +958,6 @@
       });
     }
 
-    if (dom.reset) {
-      dom.reset.addEventListener('click', () => {
-        if (!confirm('This clears all saved habits, tasks, journals, dreams, and goals. Continue?')) return;
-        Object.assign(state, defaultState());
-        saveState();
-        renderAll();
-      });
-    }
-
-    if (dom.themeToggle) {
-      dom.themeToggle.addEventListener('change', () => {
-        state.theme = dom.themeToggle.checked ? 'light' : 'dark';
-        applyTheme();
-        saveState();
-      });
-    }
-
-    if (dom.settingsButton && dom.settingsModal) {
-      dom.settingsButton.addEventListener('click', () => {
-        dom.settingsModal.showModal();
-        if (dom.titleInput) dom.titleInput.value = state.title;
-      });
-    }
-    if (dom.closeSettings && dom.settingsModal) {
-      dom.closeSettings.addEventListener('click', () => dom.settingsModal.close());
-    }
-
-    if (dom.titleInput) {
-      dom.titleInput.addEventListener('input', () => {
-        state.title = dom.titleInput.value.trim() || defaultState().title;
-        renderTitle();
-        saveState();
-      });
-    }
-
-    if (dom.accentPicker) {
-      dom.accentPicker.addEventListener('change', () => {
-        state.accent = dom.accentPicker.value;
-        applyAccent();
-        saveState();
-      });
-    }
-
     if (dom.prevMonth) dom.prevMonth.addEventListener('click', () => changeMonth(-1));
     if (dom.nextMonth) dom.nextMonth.addEventListener('click', () => changeMonth(1));
     if (dom.dayDetail && document.getElementById('close-detail')) {
@@ -836,6 +999,7 @@
     const renderGoals = () => {
       if (!dom.goalList) return;
       dom.goalList.innerHTML = '';
+      renderTotals();
       if (!state.goals.length) {
         dom.goalList.innerHTML = '<div class="empty">Add your big targets for 2026.</div>';
         return;
@@ -851,6 +1015,19 @@
           const meta = document.createElement('div');
           meta.className = 'meta';
           meta.textContent = formatDate(new Date(goal.created).toISOString().slice(0, 10));
+          const actions = document.createElement('div');
+          actions.className = 'row';
+          const edit = document.createElement('button');
+          edit.type = 'button';
+          edit.className = 'ghost';
+          edit.textContent = 'Edit';
+          edit.addEventListener('click', () => {
+            const next = prompt('Update your goal', goal.title);
+            if (!next || !next.trim()) return;
+            goal.title = next.trim();
+            saveState();
+            renderGoals();
+          });
           const remove = document.createElement('button');
           remove.type = 'button';
           remove.className = 'ghost';
@@ -860,7 +1037,8 @@
             saveState();
             renderGoals();
           });
-          row.append(title, meta, remove);
+          actions.append(edit, remove);
+          row.append(title, meta, actions);
           dom.goalList.append(row);
         });
     };
@@ -879,7 +1057,7 @@
         name.textContent = quit.name;
         const meta = document.createElement('div');
         meta.className = 'meta';
-        meta.textContent = `Quit on ${quit.date}`;
+        meta.textContent = `Quit on ${formatDate(quit.date, { month: 'short', day: 'numeric', year: 'numeric' })}`;
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'ghost';
@@ -894,15 +1072,27 @@
       });
     };
 
-    const renderGoalsPage = () => {
+    renderGoalsPage = () => {
       renderTitle();
       applyTheme();
       applyAccent();
       if (dom.quitDate) dom.quitDate.value = today();
+      renderLibrary();
+      renderTotals();
       renderGoals();
       renderQuitLibrary();
     };
 
     renderGoalsPage();
   }
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== STORAGE_KEY) return;
+    try {
+      const next = event.newValue ? JSON.parse(event.newValue) : defaultState();
+      refreshFromStorage(next);
+    } catch (e) {
+      console.warn('Unable to sync state from storage', e);
+    }
+  });
 })();
