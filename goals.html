@@ -19,48 +19,115 @@
       </div>
     </div>
     <div class="actions">
+      <button id="settings-button" type="button" class="ghost">Settings</button>
       <a href="index.html" class="ghost">Back to engine</a>
     </div>
   </header>
 
   <main>
-    <section class="card">
-      <header class="card-head">
-        <div>
-          <p class="eyebrow">Objectives</p>
-          <h3>Annual goals</h3>
-        </div>
-      </header>
-      <form id="goal-form" class="stack">
-        <input id="goal-input" type="text" placeholder="Ship 12 longform essays" required />
-        <button type="submit">Save goal</button>
-      </form>
-      <div id="goal-list" class="goal-list"></div>
+    <section class="grid">
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <p class="eyebrow">Objectives</p>
+            <h3>Annual goals</h3>
+          </div>
+        </header>
+        <form id="goal-form" class="stack">
+          <input id="goal-input" type="text" placeholder="Ship 12 longform essays" required />
+          <button type="submit">Save goal</button>
+        </form>
+        <div id="goal-list" class="goal-list"></div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <p class="eyebrow">Quit list</p>
+            <h3>Habits I am done with</h3>
+          </div>
+        </header>
+        <form id="quit-form" class="grid">
+          <label class="stacked">Habit name
+            <input id="quit-name" type="text" placeholder="No sugar drinks" required />
+          </label>
+          <label class="stacked">Quit date
+            <input id="quit-date" type="date" required />
+          </label>
+          <button type="submit">Record</button>
+        </form>
+        <div id="quit-library" class="goal-list"></div>
+      </article>
     </section>
 
     <section class="card">
       <header class="card-head">
         <div>
-          <p class="eyebrow">Quit list</p>
-          <h3>Habits I am done with</h3>
+          <p class="eyebrow">Habits</p>
+          <h3>Library &amp; cadence</h3>
         </div>
+        <p class="muted">These habits drive the checklist on the main page.</p>
       </header>
-      <form id="quit-form" class="grid">
-        <label class="stacked">Habit name
-          <input id="quit-name" type="text" placeholder="No sugar drinks" required />
+      <form id="habit-form" class="stack">
+        <input id="habit-input" type="text" placeholder="Name (Stretch, Write, Meditate)" required />
+        <label class="stacked">Cadence
+          <select id="habit-cadence">
+            <option value="daily">Every day</option>
+            <option value="weekdays">Weekdays</option>
+            <option value="custom">Specific days</option>
+          </select>
         </label>
-        <label class="stacked">Quit date
-          <input id="quit-date" type="date" required />
-        </label>
-        <button type="submit">Record</button>
+        <div class="days" id="day-picker">
+          <label><input type="checkbox" value="0" />Sun</label>
+          <label><input type="checkbox" value="1" />Mon</label>
+          <label><input type="checkbox" value="2" />Tue</label>
+          <label><input type="checkbox" value="3" />Wed</label>
+          <label><input type="checkbox" value="4" />Thu</label>
+          <label><input type="checkbox" value="5" />Fri</label>
+          <label><input type="checkbox" value="6" />Sat</label>
+        </div>
+        <div class="row end">
+          <span class="muted" id="habit-edit-hint">Add to today's checklist</span>
+          <button type="submit" id="habit-submit">Add habit</button>
+        </div>
       </form>
-      <div id="quit-library" class="goal-list"></div>
+      <div id="library" class="list"></div>
     </section>
   </main>
 
   <footer class="muted center">
     <p>Everything runs client-side. No trackers, no accounts, just your habits.</p>
   </footer>
+
+  <dialog id="settings-modal">
+    <div class="modal-head">
+      <div>
+        <p class="eyebrow">Control room</p>
+        <h3>Settings</h3>
+      </div>
+      <button id="close-settings" type="button" class="ghost">Close</button>
+    </div>
+    <div class="stack">
+      <label class="stacked">Rename engine
+        <input id="title-input" type="text" />
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="theme-toggle" />
+        <span>Light mode</span>
+      </label>
+      <label class="stacked">Accent mood
+        <select id="accent-picker">
+          <option value="violet">Violet / Teal</option>
+          <option value="sunrise">Sunrise</option>
+          <option value="midnight">Midnight neon</option>
+        </select>
+      </label>
+      <div class="row end">
+        <span class="muted">Full reset wipes everything</span>
+        <button id="reset-data" type="button" class="ghost danger">Reset data</button>
+      </div>
+    </div>
+  </dialog>
 
   <script src="app.js"></script>
 </body>
