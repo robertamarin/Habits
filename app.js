@@ -4,7 +4,7 @@
   const today = () => new Date().toISOString().slice(0, 10);
   const dayKey = (value = new Date()) => {
     const d = new Date(value);
-    d.setHours(0, 0, 0, 0);
+    d.setHours(12, 0, 0, 0);
     return d.toISOString().slice(0, 10);
   };
   const startOfDayIso = (value = new Date()) => {
@@ -14,9 +14,7 @@
   };
   const startOfMonthKey = (value = new Date()) => {
     const d = new Date(value);
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString().slice(0, 10);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
   };
   const randomId = () => (crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
@@ -30,7 +28,7 @@
     goals: [],
     currentYear: new Date().getFullYear(),
     hiddenSections: [],
-    focusMode: false,
+    selectedDate: today(),
     heatmapFilter: 'all',
     monthCursor: startOfMonthKey()
   });
@@ -47,6 +45,14 @@
   };
 
   const state = loadState();
+
+  const selectedDate = () => {
+    const chosen = dayKey(state.selectedDate || today());
+    const todayStart = dayKey(today());
+    const candidate = new Date(`${chosen}T12:00:00`);
+    const now = new Date(`${todayStart}T12:00:00`);
+    return candidate > now ? todayStart : chosen;
+  };
 
   const seedHabitCreationDates = () => {
     const earliestById = {};
@@ -150,10 +156,8 @@
     historyMode: document.getElementById('history-mode'),
     historyToggle: document.getElementById('history-toggle'),
     winsPill: document.getElementById('wins-pill'),
-    focusMode: document.getElementById('focus-mode'),
     toolbar: document.querySelector('.toolbar'),
     toolbarToggle: document.getElementById('toolbar-toggle'),
-    navToggle: document.getElementById('nav-toggle'),
     momentumBar: document.querySelector('.meter-bar span'),
     exportData: document.getElementById('export-data'),
     exportCsv: document.getElementById('export-csv'),
@@ -170,7 +174,8 @@
     quitName: document.getElementById('quit-name'),
     quitDate: document.getElementById('quit-date'),
     journalCard: document.querySelector('.journal-card'),
-    notesCta: document.getElementById('notes-cta')
+    notesCta: document.getElementById('notes-cta'),
+    habitDate: document.getElementById('habit-date')
   };
 
   let editingHabitId = null;
@@ -285,17 +290,9 @@
     });
   };
 
-  const applyFocusMode = () => {
-    if (dom.focusMode) dom.focusMode.checked = !!state.focusMode;
-    document.querySelectorAll('[data-focus-hidden]').forEach((node) => {
-      node.classList.toggle('focus-hidden', !!state.focusMode);
-    });
-    document.querySelectorAll('[data-focus-visible]').forEach((node) => node.classList.remove('focus-hidden'));
-  };
-
   const renderChecklist = () => {
     if (!dom.habitList) return;
-    const date = today();
+    const date = selectedDate();
     const day = getDay(date);
     const todayHabits = activeHabitsForDate(date);
 
@@ -386,24 +383,6 @@
 
       box.append(input, labels);
 
-      const sparkWrap = document.createElement('div');
-      sparkWrap.className = 'sparkline-wrap';
-      const spark = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      spark.setAttribute('viewBox', '0 0 80 34');
-      spark.classList.add('sparkline');
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.style.stroke = habit.color || 'var(--accent)';
-      const history = habitHistory(habit, 14);
-      const filtered = history.map((v) => (v === null ? 0 : v));
-      const points = filtered.map((v, i) => {
-        const x = (i / (filtered.length - 1)) * 80;
-        const y = 30 - v * 24;
-        return `${x},${y}`;
-      });
-      path.setAttribute('d', `M${points.join(' L')}`);
-      spark.append(path);
-      sparkWrap.append(spark);
-
       body.append(mini, box);
 
       const actions = document.createElement('div');
@@ -419,7 +398,7 @@
       topRow.className = 'row between';
       topRow.append(body, badge, actions);
 
-      item.append(topRow, sparkWrap);
+      item.append(topRow);
       dom.habitList.append(item);
 
       item.addEventListener('dragstart', () => item.classList.add('dragging'));
@@ -744,7 +723,7 @@
 
   const renderProgress = (fromAction = false) => {
     if (!dom.progressFill) return;
-    const date = today();
+    const date = selectedDate();
     const day = getDay(date);
     const todayHabits = activeHabitsForDate(date);
     const total = todayHabits.length;
@@ -886,8 +865,8 @@
     if (!dom.monthlyStrip) return;
     renderHeatmapFilter();
     dom.monthlyStrip.innerHTML = '';
-    const rawMonth = new Date(state.monthCursor || startOfMonthKey());
-    const monthStart = Number.isNaN(rawMonth.getTime()) ? new Date(startOfMonthKey()) : rawMonth;
+    const cursor = new Date(`${state.monthCursor || startOfMonthKey()}T12:00:00`);
+    const monthStart = Number.isNaN(cursor.getTime()) ? new Date(`${startOfMonthKey()}T12:00:00`) : cursor;
     monthStart.setDate(1);
     const year = monthStart.getFullYear();
     const month = monthStart.getMonth();
@@ -962,13 +941,11 @@
   };
 
   const changeMonth = (delta) => {
-    const baseRaw = new Date(state.monthCursor || startOfMonthKey());
-    const base = Number.isNaN(baseRaw.getTime()) ? new Date(startOfMonthKey()) : baseRaw;
+    const base = new Date(`${state.monthCursor || startOfMonthKey()}T12:00:00`);
+    if (Number.isNaN(base.getTime())) base.setTime(new Date(`${startOfMonthKey()}T12:00:00`).getTime());
     base.setDate(1);
     base.setMonth(base.getMonth() + delta);
-    const todayStart = new Date();
-    todayStart.setDate(1);
-    todayStart.setHours(0, 0, 0, 0);
+    const todayStart = new Date(`${startOfMonthKey()}T12:00:00`);
     if (base > todayStart) base.setTime(todayStart.getTime());
     state.monthCursor = startOfMonthKey(base);
     saveState();
@@ -1389,9 +1366,10 @@
     const longest = computeLongestStreak();
     if (dom.summaryStreak) dom.summaryStreak.textContent = `${streakCount}d`;
     if (dom.summaryLongest) dom.summaryLongest.textContent = `${longest}d`;
-    const percent = todayPercent ?? (dayCompletion(today()) ?? 0);
+    const targetDate = selectedDate();
+    const percent = todayPercent ?? (dayCompletion(targetDate) ?? 0);
     if (dom.summaryRate) dom.summaryRate.textContent = `${percent}%`;
-    const day = getDay(today());
+    const day = getDay(targetDate);
     const winsCount = wins ?? day.tasks.length;
     if (dom.summaryWins) dom.summaryWins.textContent = String(winsCount);
     if (dom.summaryGoals) dom.summaryGoals.textContent = String(state.goals.length);
@@ -1422,18 +1400,21 @@
   };
 
   const renderAll = () => {
-    if (dom.todayLabel) dom.todayLabel.textContent = formatDate(today());
+    state.selectedDate = selectedDate();
+    if (dom.todayLabel) dom.todayLabel.textContent = formatDate(state.selectedDate);
+    if (dom.habitDate) {
+      dom.habitDate.value = state.selectedDate;
+      dom.habitDate.max = today();
+    }
     renderTitle();
     applyTheme();
     applyAccent();
     applyHiddenSections();
-    applyFocusMode();
     syncHiddenSectionToggles();
     const currentMonthStart = startOfMonthKey();
     const chosenMonth = state.monthCursor || currentMonthStart;
-    const cursorDate = new Date(chosenMonth);
-    const clampDate = new Date(currentMonthStart);
-    cursorDate.setHours(0, 0, 0, 0);
+    const cursorDate = new Date(`${chosenMonth}T12:00:00`);
+    const clampDate = new Date(`${currentMonthStart}T12:00:00`);
     if (cursorDate > clampDate) state.monthCursor = currentMonthStart;
     state.monthCursor = state.monthCursor || currentMonthStart;
     renderHeatmapFilter();
@@ -1553,15 +1534,6 @@
     });
   });
 
-  if (dom.focusMode) {
-    dom.focusMode.checked = !!state.focusMode;
-    dom.focusMode.addEventListener('change', () => {
-      state.focusMode = dom.focusMode.checked;
-      saveState();
-      applyFocusMode();
-    });
-  }
-
   const toggleToolbar = () => {
     if (!dom.toolbar) return;
     dom.toolbar.classList.toggle('is-open');
@@ -1678,45 +1650,6 @@
     });
   }
 
-  // Events: Home page
-  const navLinks = Array.from(document.querySelectorAll('.nav-link'));
-  const navTargets = navLinks
-    .map((link) => (link.getAttribute('href') || '').replace('#', ''))
-    .filter(Boolean);
-  const setActiveNav = (id) => {
-    navLinks.forEach((link) => {
-      const target = (link.getAttribute('href') || '').replace('#', '');
-      link.classList.toggle('active', target === id);
-    });
-  };
-  if (navLinks.length) {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) setActiveNav(entry.target.id);
-      });
-    }, { threshold: 0.35 });
-    navTargets.forEach((id) => {
-      const node = document.getElementById(id);
-      if (node) observer.observe(node);
-    });
-    navLinks.forEach((link) => {
-      link.addEventListener('click', () => {
-        const nav = document.querySelector('.primary-nav');
-        nav?.classList.remove('open');
-        if (dom.navToggle) dom.navToggle.setAttribute('aria-expanded', 'false');
-        const target = (link.getAttribute('href') || '').replace('#', '');
-        if (target) setActiveNav(target);
-      });
-    });
-  }
-  if (dom.navToggle) {
-    dom.navToggle.addEventListener('click', () => {
-      const nav = document.querySelector('.primary-nav');
-      const open = nav?.classList.toggle('open');
-      dom.navToggle.setAttribute('aria-expanded', String(!!open));
-    });
-  }
-
   if (dom.notesCta && dom.journalCard) {
     dom.notesCta.addEventListener('click', () => {
       dom.journalCard.classList.remove('collapsed');
@@ -1727,12 +1660,25 @@
 
   if (dom.markAll) {
     dom.markAll.addEventListener('click', () => {
-      const day = getDay(today());
-      activeHabitsForDate(today()).forEach((h) => {
+      const date = selectedDate();
+      const day = getDay(date);
+      activeHabitsForDate(date).forEach((h) => {
         day.habits[h.id] = true;
       });
       saveState();
       renderChecklist();
+      renderHistory();
+    });
+  }
+
+  if (dom.habitDate) {
+    dom.habitDate.addEventListener('change', () => {
+      const next = dom.habitDate.value || today();
+      state.selectedDate = dayKey(next);
+      if (dom.todayLabel) dom.todayLabel.textContent = formatDate(state.selectedDate);
+      saveState();
+      renderChecklist();
+      renderProgress();
       renderHistory();
     });
   }
