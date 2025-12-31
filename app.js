@@ -1,983 +1,442 @@
 (function () {
-  const STORAGE_KEY = 'habitStateV2';
-  const randomId = () => crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const STORAGE_KEY = 'habitFreshV1';
   const today = () => new Date().toISOString().slice(0, 10);
+  const randomId = () => crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   const defaultState = () => ({
-    goals: [],
-    completions: {},
-    todos: [],
-    breaks: [],
-    logs: [],
-    dreams: [],
-    theme: 'dark',
-    accent: '#7c3aed'
+    habits: [],
+    days: {},
+    theme: 'dark'
   });
 
-  const normalizeCompletions = (source = {}) => {
-    const output = {};
-    Object.entries(source).forEach(([date, record]) => {
-      const goals = record.goals || record.goalStatuses || {};
-      output[date] = {
-        goals: goals,
-        todoCount: record.todoCount || 0
-      };
-    });
-    return output;
-  };
-
-  const migrateLegacy = () => {
-    const state = defaultState();
-    try {
-      const goals = JSON.parse(localStorage.getItem('habitGoals') || '[]');
-      const completions = normalizeCompletions(JSON.parse(localStorage.getItem('habitCompletions') || '{}'));
-      const todos = JSON.parse(localStorage.getItem('habitTodos') || '[]');
-      const breaks = JSON.parse(localStorage.getItem('habitBreaks') || '[]');
-      const theme = localStorage.getItem('habitTheme');
-      const accent = localStorage.getItem('habitAccent');
-      if (goals.length || Object.keys(completions).length || todos.length || breaks.length) {
-        state.goals = goals.map((g, i) => ({
-          id: g.id || randomId(),
-          name: g.name || 'Untitled goal',
-          group: g.group || '',
-          target: g.target || 1,
-          frequency: g.frequency || 'daily',
-          days: g.days || [],
-          times: g.times || 3,
-          createdDate: g.createdDate || today(),
-          archived: g.archived || false,
-          archivedDate: g.archivedDate,
-          order: typeof g.order === 'number' ? g.order : i
-        }));
-        state.completions = completions;
-        state.todos = todos.map(t => ({
-          id: t.id || randomId(),
-          text: t.text || 'Task',
-          completed: !!t.completed,
-          dueDate: t.dueDate || '',
-          completedDate: t.completedDate || ''
-        }));
-        state.breaks = breaks.map(b => ({ id: b.id || randomId(), name: b.name || 'Quit habit', startDate: b.startDate || today() }));
-        state.theme = theme || state.theme;
-        state.accent = accent || state.accent;
-      }
-    } catch (err) {
-      console.warn('Migration skipped', err);
-    }
-    return state;
-  };
-
   const loadState = () => {
-    const base = defaultState();
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return migrateLegacy();
     try {
-      const parsed = JSON.parse(saved);
-      parsed.completions = normalizeCompletions(parsed.completions || {});
-      return { ...base, ...parsed };
-    } catch (err) {
-      console.error('Failed to parse state', err);
-      return migrateLegacy();
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      const parsed = JSON.parse(raw);
+      return Object.assign(defaultState(), parsed);
+    } catch (e) {
+      console.warn('Resetting state after parse issue', e);
+      return defaultState();
     }
   };
 
-  let state = loadState();
-  let cachedToday = today();
-  let timerId;
-  let activePage = 'today';
+  const saveState = (state) => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
-  const persist = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const state = loadState();
+  const dom = {
+    todayLabel: document.getElementById('today-label'),
+    progress: document.getElementById('progress-bar'),
+    habitList: document.getElementById('habit-list'),
+    emptyHabits: document.getElementById('empty-habits'),
+    completeCount: document.getElementById('complete-count'),
+    habitCount: document.getElementById('habit-count'),
+    streak: document.getElementById('streak'),
+    markAll: document.getElementById('mark-all'),
+    taskForm: document.getElementById('task-form'),
+    taskInput: document.getElementById('task-input'),
+    taskList: document.getElementById('task-list'),
+    taskCount: document.getElementById('task-count'),
+    clearDone: document.getElementById('clear-done'),
+    habitForm: document.getElementById('habit-form'),
+    habitInput: document.getElementById('habit-input'),
+    habitCadence: document.getElementById('habit-cadence'),
+    dayPicker: document.getElementById('day-picker'),
+    library: document.getElementById('library'),
+    journalForm: document.getElementById('journal-form'),
+    journalTitle: document.getElementById('journal-title'),
+    journalText: document.getElementById('journal-text'),
+    journalList: document.getElementById('journal-list'),
+    reset: document.getElementById('reset-data'),
+    themeToggle: document.getElementById('theme-toggle'),
+    history: document.getElementById('history')
   };
 
-  const qs = (sel) => document.querySelector(sel);
-  const qsa = (sel) => Array.from(document.querySelectorAll(sel));
-
-  const setTheme = (theme) => {
-    state.theme = theme;
-    document.documentElement.setAttribute('data-theme', theme);
-    persist();
-  };
-
-  const setAccent = (color) => {
-    state.accent = color;
-    document.documentElement.style.setProperty('--accent', color);
-    persist();
-  };
-
-  const ensureRecord = (date) => {
-    const existing = state.completions[date];
-    if (existing) {
-      if (existing.goalStatuses && !existing.goals) existing.goals = existing.goalStatuses;
+  const getDay = (date) => {
+    if (!state.days[date]) {
+      state.days[date] = { habits: {}, tasks: [], journal: [] };
     }
-    state.completions[date] = state.completions[date] || { goals: {}, todoCount: 0 };
-    return state.completions[date];
+    return state.days[date];
   };
 
-  const isGoalDue = (goal, dateStr) => {
-    const date = new Date(dateStr + 'T00:00:00');
-    if (goal.archived && goal.archivedDate && dateStr >= goal.archivedDate) return false;
-    if (dateStr < goal.createdDate) return false;
-    const weekday = date.getDay();
-    switch (goal.frequency) {
-      case 'weekdays':
-        return weekday >= 1 && weekday <= 5;
-      case 'custom':
-        return (goal.days || []).includes(weekday);
-      case 'week': {
-        const { start } = getRange(dateStr, 'week');
-        const count = countGoal(goal.id, start, dateStr);
-        return count < (goal.times || 3);
-      }
-      case 'month': {
-        const { start } = getRange(dateStr, 'month');
-        const count = countGoal(goal.id, start, dateStr);
-        return count < (goal.times || 10);
-      }
-      default:
-        return true;
+  const formatDate = (value) => {
+    const options = { weekday: 'long', month: 'long', day: 'numeric' };
+    return new Intl.DateTimeFormat(undefined, options).format(new Date(value));
+  };
+
+  const shouldShowHabitToday = (habit, dateValue) => {
+    const day = new Date(dateValue).getDay();
+    if (habit.cadence === 'daily') return true;
+    if (habit.cadence === 'weekdays') return day >= 1 && day <= 5;
+    if (habit.cadence === 'custom') {
+      return (habit.days || []).includes(day);
     }
+    return true;
   };
 
-  const getRange = (dateStr, type) => {
-    const date = new Date(dateStr + 'T00:00:00');
-    if (type === 'week') {
-      const diff = (date.getDay() + 6) % 7;
-      const start = new Date(date);
-      start.setDate(date.getDate() - diff);
-      return { start: toISO(start) };
+  const renderChecklist = () => {
+    const date = today();
+    const day = getDay(date);
+    const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
+    dom.habitCount.textContent = todayHabits.length;
+
+    dom.habitList.innerHTML = '';
+    if (!todayHabits.length) {
+      dom.emptyHabits.classList.remove('hidden');
+    } else {
+      dom.emptyHabits.classList.add('hidden');
     }
-    const start = new Date(date.getFullYear(), date.getMonth(), 1);
-    return { start: toISO(start) };
-  };
 
-  const toISO = (d) => d.toISOString().slice(0, 10);
+    todayHabits.forEach((habit) => {
+      const item = document.createElement('div');
+      item.className = 'habit-item';
 
-  const countGoal = (goalId, start, end) => {
-    let cursor = new Date(start + 'T00:00:00');
-    const limit = new Date(end + 'T00:00:00');
-    let total = 0;
-    while (cursor <= limit) {
-      const key = toISO(cursor);
-      total += state.completions[key]?.goals?.[goalId] || 0;
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return total;
-  };
+      const box = document.createElement('label');
+      box.className = 'checkbox';
 
-  const goalsForDate = (dateStr) => state.goals
-    .filter((g) => !g.archived)
-    .filter((g) => isGoalDue(g, dateStr))
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = Boolean(day.habits[habit.id]);
+      input.addEventListener('change', () => {
+        day.habits[habit.id] = input.checked;
+        saveState(state);
+        renderProgress();
+        renderHistory();
+      });
 
-  const metrics = () => {
-    const record = ensureRecord(cachedToday);
-    const todayGoals = goalsForDate(cachedToday);
-    const totalTargets = todayGoals.reduce((sum, g) => sum + (g.target || 1), 0);
-    const completed = todayGoals.reduce((sum, g) => sum + Math.min(record.goals[g.id] || 0, g.target || 1), 0);
-    const percent = totalTargets === 0 ? 0 : Math.round((completed / totalTargets) * 100);
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = habit.name;
 
-    const year = new Date(cachedToday).getFullYear();
-    let yearCount = 0;
-    Object.entries(state.completions).forEach(([date, rec]) => {
-      if (!date.startsWith(String(year))) return;
-      yearCount += Object.values(rec.goals || {}).reduce((a, b) => a + Math.min(b, 999), 0);
-      yearCount += rec.todoCount || 0;
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = habit.cadence === 'custom' ? `Days: ${(habit.days || []).length}` : habit.cadence;
+
+      const left = document.createElement('div');
+      left.append(box);
+      box.append(input);
+      const labels = document.createElement('div');
+      labels.append(title, meta);
+      left.append(labels);
+
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = input.checked ? 'Done' : 'Pending';
+
+      item.append(left, badge);
+      dom.habitList.append(item);
     });
 
-    const streak = computeStreak();
-    const todayActions = completed + (record.todoCount || 0);
-
-    return { percent, completed, totalTargets, yearCount, streak, todayActions, goalCount: todayGoals.length };
+    renderProgress();
   };
 
-  const summarizeRange = (range) => {
-    const end = new Date(cachedToday + 'T00:00:00');
-    const start = new Date(end);
-    start.setDate(end.getDate() - (range - 1));
-    const data = [];
-    let longest = 0;
-    let current = 0;
-    let totalPct = 0;
-    let daysCounted = 0;
-    let bestDay = '';
-    let bestTotal = 0;
-    let totalActions = 0;
-    let goalActions = 0;
-    let todoActions = 0;
-
-    let cursor = new Date(start);
-    while (cursor <= end) {
-      const dateStr = toISO(cursor);
-      const goalsDue = goalsForDate(dateStr);
-      const record = state.completions[dateStr] || { goals: {}, todoCount: 0 };
-      const target = goalsDue.reduce((s, g) => s + (g.target || 1), 0);
-      const doneGoals = goalsDue.reduce((s, g) => s + Math.min(record.goals?.[g.id] || 0, g.target || 1), 0);
-      const done = doneGoals + (record.todoCount || 0);
-      data.push({ date: dateStr, done, target });
-
-      if (target === 0 || done >= target) {
-        current += 1;
-        longest = Math.max(longest, current);
-      } else {
-        current = 0;
-      }
-      totalPct += target ? (Math.min(done, target) / Math.max(target, 1)) : 1;
-      daysCounted += 1;
-      if (done > bestTotal) { bestTotal = done; bestDay = dateStr; }
-      totalActions += done;
-      goalActions += doneGoals;
-      todoActions += record.todoCount || 0;
-      cursor.setDate(cursor.getDate() + 1);
+  const renderTasks = () => {
+    const day = getDay(today());
+    dom.taskList.innerHTML = '';
+    if (!day.tasks.length) {
+      dom.taskList.innerHTML = '<div class="empty">No tasks yet</div>';
     }
 
-    const averageCompletion = Math.round((totalPct / Math.max(daysCounted, 1)) * 100);
-    const averageActions = Math.round(totalActions / Math.max(daysCounted, 1));
+    day.tasks.forEach((task) => {
+      const item = document.createElement('div');
+      item.className = 'task';
 
-    return { data, longest, bestDay, bestTotal, averageCompletion, averageActions, totalActions, goalActions, todoActions };
+      const left = document.createElement('label');
+      left.className = 'checkbox';
+
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = task.done;
+      input.addEventListener('change', () => {
+        task.done = input.checked;
+        saveState(state);
+        renderTasks();
+        renderHistory();
+      });
+
+      const title = document.createElement('span');
+      title.className = 'title';
+      title.textContent = task.title;
+
+      left.append(input, title);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'ghost';
+      remove.textContent = 'Delete';
+      remove.addEventListener('click', () => {
+        day.tasks = day.tasks.filter((t) => t.id !== task.id);
+        saveState(state);
+        renderTasks();
+        renderHistory();
+      });
+
+      item.append(left, remove);
+      dom.taskList.append(item);
+    });
+
+    const done = day.tasks.filter((t) => t.done).length;
+    dom.taskCount.textContent = `${done}/${day.tasks.length} done`;
+  };
+
+  const renderLibrary = () => {
+    dom.library.innerHTML = '';
+    if (!state.habits.length) {
+      dom.library.innerHTML = '<div class="empty">No habits yet</div>';
+      return;
+    }
+
+    state.habits.forEach((habit) => {
+      const item = document.createElement('div');
+      item.className = 'habit-item';
+
+      const block = document.createElement('div');
+      block.className = 'checkbox';
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = habit.name;
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = habit.cadence === 'custom'
+        ? `Specific days (${(habit.days || []).length})`
+        : habit.cadence;
+
+      block.append(title, meta);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'ghost';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => {
+        const date = today();
+        const day = getDay(date);
+        delete day.habits[habit.id];
+        state.habits = state.habits.filter((h) => h.id !== habit.id);
+        saveState(state);
+        renderChecklist();
+        renderLibrary();
+        renderProgress();
+        renderHistory();
+      });
+
+      item.append(block, remove);
+      dom.library.append(item);
+    });
+  };
+
+  const renderJournal = () => {
+    const date = today();
+    const day = getDay(date);
+    dom.journalList.innerHTML = '';
+    if (!day.journal.length) {
+      dom.journalList.innerHTML = '<div class="empty">No entries yet</div>';
+      return;
+    }
+
+    day.journal
+      .slice()
+      .sort((a, b) => b.created - a.created)
+      .forEach((entry) => {
+        const item = document.createElement('div');
+        item.className = 'journal-item';
+        const content = document.createElement('div');
+        const title = document.createElement('h4');
+        title.textContent = entry.title || 'Untitled note';
+        const text = document.createElement('p');
+        text.textContent = entry.text;
+        content.append(title, text);
+
+        const time = document.createElement('span');
+        time.className = 'meta';
+        time.textContent = new Date(entry.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'ghost';
+        remove.textContent = 'Delete';
+        remove.addEventListener('click', () => {
+          day.journal = day.journal.filter((j) => j.id !== entry.id);
+          saveState(state);
+          renderJournal();
+          renderHistory();
+        });
+
+        item.append(content, time, remove);
+        dom.journalList.append(item);
+      });
+  };
+
+  const renderProgress = () => {
+    const date = today();
+    const day = getDay(date);
+    const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
+    const total = todayHabits.length || 1;
+    const done = todayHabits.filter((h) => day.habits[h.id]).length;
+    const percent = Math.round((done / total) * 100);
+    dom.completeCount.textContent = done;
+    dom.progress.style.width = `${percent}%`;
+    dom.progress.parentElement.setAttribute('aria-valuenow', percent);
+    dom.streak.textContent = `${computeStreak()}+`;
+    dom.progress.title = `${percent}% complete`;
+  };
+
+  const renderHistory = () => {
+    const dates = Array.from({ length: 14 }).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().slice(0, 10);
+    });
+
+    dom.history.innerHTML = '';
+
+    dates.forEach((date) => {
+      const day = state.days[date];
+      const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, date));
+      const total = todayHabits.length;
+      const done = day ? todayHabits.filter((h) => day.habits && day.habits[h.id]).length : 0;
+      const tasks = day ? `${day.tasks.filter((t) => t.done).length}/${(day.tasks || []).length}` : '0/0';
+      const entry = document.createElement('div');
+      entry.className = 'day';
+
+      const heading = document.createElement('strong');
+      heading.textContent = formatDate(date);
+      const stats = document.createElement('div');
+      stats.textContent = total ? `${done}/${total} habits` : 'No habits scheduled';
+      const tasksLine = document.createElement('div');
+      tasksLine.className = 'meta';
+      tasksLine.textContent = `Tasks: ${tasks}`;
+
+      entry.append(heading, stats, tasksLine);
+      dom.history.append(entry);
+    });
   };
 
   const computeStreak = () => {
     let streak = 0;
-    let cursor = new Date(cachedToday + 'T00:00:00');
-    while (true) {
-      const dateStr = toISO(cursor);
-      const todaysGoals = goalsForDate(dateStr);
-      const record = state.completions[dateStr];
-      const allDone = todaysGoals.length === 0 || (record && todaysGoals.every(g => (record.goals?.[g.id] || 0) >= (g.target || 1)));
-      if (!allDone) break;
-      streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
+    for (let i = 0; i < 365; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const day = state.days[key];
+      if (!day) break;
+      const todayHabits = state.habits.filter((h) => shouldShowHabitToday(h, key));
+      const total = todayHabits.length;
+      const done = todayHabits.filter((h) => day.habits && day.habits[h.id]).length;
+      if (total && done === total) {
+        streak += 1;
+      } else {
+        break;
+      }
     }
     return streak;
   };
 
-  const humanFrequency = (goal) => {
-    switch (goal.frequency) {
-      case 'weekdays': return 'Weekdays';
-      case 'custom': return (goal.days || []).map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', ') || 'Custom days';
-      case 'week': return `${goal.times || 3}× per week`;
-      case 'month': return `${goal.times || 10}× per month`;
-      default: return 'Daily';
-    }
-  };
+  // Event wiring
+  dom.habitForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const name = dom.habitInput.value.trim();
+    if (!name) return;
+    const cadence = dom.habitCadence.value;
+    const days = Array.from(dom.dayPicker.querySelectorAll('input:checked')).map((d) => Number(d.value));
+    const habit = { id: randomId(), name, cadence, days };
+    state.habits.push(habit);
+    dom.habitInput.value = '';
+    dom.dayPicker.querySelectorAll('input').forEach((i) => (i.checked = false));
+    saveState(state);
+    renderLibrary();
+    renderChecklist();
+    renderHistory();
+  });
 
-  const playTick = () => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.value = 940;
-      osc.type = 'triangle';
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      gain.gain.setValueAtTime(0.001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.3);
-    } catch (_) { /* ignore */ }
-  };
+  dom.habitCadence.addEventListener('change', () => {
+    const custom = dom.habitCadence.value === 'custom';
+    dom.dayPicker.style.display = custom ? 'flex' : 'none';
+  });
 
-  const render = () => {
-    cachedToday = today();
-    qs('#today-label').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-    renderThemeControls();
-    renderStats();
-    renderGoalsToday();
-    renderTodos();
-    renderSnapshot();
-    renderBreaks();
-    renderWeeklyGraphic();
-    renderInsights();
-    renderJournals();
-    renderDreams();
-    if (activePage === 'goals') renderGoalsPage();
-    if (activePage === 'history') { renderHistory(); renderAnalytics(); }
-  };
-
-  const renderThemeControls = () => {
-    const select = qs('#theme-select');
-    const accentPicker = qs('#accent-picker');
-    if (select) select.value = state.theme;
-    if (accentPicker) accentPicker.value = state.accent;
-    setTheme(state.theme);
-    setAccent(state.accent);
-  };
-
-  const renderStats = () => {
-    const { percent, completed, totalTargets, yearCount, streak, todayActions, goalCount } = metrics();
-    const bar = qs('#progress-bar');
-    const label = qs('#progress-label');
-    if (bar) bar.style.width = `${percent}%`;
-    if (label) label.textContent = `${percent}% • ${completed}/${totalTargets || 0} steps`;
-
-    const grid = qs('#stat-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
-    const tiles = [
-      { label: 'Today', value: todayActions },
-      { label: 'Goals active', value: goalCount },
-      { label: 'Year actions', value: yearCount },
-      { label: 'Streak', value: `${streak} days` }
-    ];
-    tiles.forEach(t => {
-      const div = document.createElement('div');
-      div.className = 'stat-tile';
-      div.innerHTML = `<div class="label">${t.label}</div><div class="value">${t.value}</div>`;
-      grid.appendChild(div);
-    });
-
-    const quote = qs('#quote');
-    if (quote) {
-      const lines = [
-        'Small steps stack into big wins.',
-        'Show up for five minutes.',
-        'Keep the chain unbroken.',
-        'Momentum beats motivation.'
-      ];
-      quote.textContent = lines[Math.floor(Math.random() * lines.length)];
-    }
-    const xp = qs('#xp-level');
-    if (xp) {
-      const level = Math.floor(yearCount / 30) + 1;
-      xp.textContent = `Level ${level} · ${yearCount * 10} XP`;
-    }
-  };
-
-  const renderGoalsToday = () => {
-    const container = qs('#goal-list-today');
-    const empty = qs('#empty-goals');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const activeGoals = goalsForDate(cachedToday);
-    const record = ensureRecord(cachedToday);
-    const completeCount = activeGoals.filter(g => (record.goals[g.id] || 0) >= (g.target || 1)).length;
-    const summary = qs('#goal-summary');
-    if (summary) summary.textContent = activeGoals.length ? `${completeCount}/${activeGoals.length} done` : 'No goals today';
-
-    if (activeGoals.length === 0) {
-      if (empty) empty.style.display = 'block';
-      return;
-    }
-    if (empty) empty.style.display = 'none';
-
-    activeGoals.forEach(goal => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      const done = record.goals[goal.id] || 0;
-      const target = goal.target || 1;
-
-      const left = document.createElement('div');
-      left.className = 'left';
-      left.innerHTML = `<strong>${goal.name}</strong><div class="muted">${humanFrequency(goal)} · Target ${target}${goal.group ? ` · ${goal.group}` : ''}</div>`;
-
-      const controls = document.createElement('div');
-      controls.className = 'switch';
-      const minus = document.createElement('button');
-      minus.className = 'ghost';
-      minus.textContent = '-1';
-      minus.disabled = done <= 0;
-      minus.addEventListener('click', () => adjustGoal(goal.id, -1));
-      const badge = document.createElement('span');
-      badge.className = 'badge';
-      badge.textContent = `${done}/${target}`;
-      const plus = document.createElement('button');
-      plus.className = 'ghost';
-      plus.textContent = '+1';
-      plus.disabled = done >= target;
-      plus.addEventListener('click', () => adjustGoal(goal.id, 1));
-
-      controls.append(minus, badge, plus);
-      card.append(left, controls);
-      container.appendChild(card);
-    });
-  };
-
-  const adjustGoal = (goalId, delta) => {
-    const goal = state.goals.find(g => g.id === goalId);
-    const target = goal ? goal.target || 1 : 1;
-    const record = ensureRecord(cachedToday);
-    const current = record.goals[goalId] || 0;
-    record.goals[goalId] = Math.min(Math.max(0, current + delta), target);
-    persist();
-    render();
-    if (delta > 0) playTick();
-  };
-
-  const renderTodos = () => {
-    const list = qs('#todo-list');
-    if (!list) return;
-    list.innerHTML = '';
-    const sorted = state.todos.slice().sort((a, b) => {
-      if (a.completed !== b.completed) return a.completed ? 1 : -1;
-      if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
-      if (a.dueDate) return -1;
-      if (b.dueDate) return 1;
-      return a.text.localeCompare(b.text);
-    });
-
-    if (!sorted.length) {
-      const p = document.createElement('p');
-      p.className = 'muted';
-      p.textContent = 'No quick tasks yet. Add a tiny step.';
-      list.appendChild(p);
-    }
-
-    sorted.forEach(todo => {
-      const row = document.createElement('div');
-      row.className = 'todo' + (todo.completed ? ' completed' : '');
-      const left = document.createElement('div');
-      left.className = 'left';
-      left.innerHTML = `<div class="todo-title">${todo.text}</div><div class="todo-meta">${todo.dueDate ? `Due ${todo.dueDate}` : 'Flexible'}${todo.completedDate ? ` · done ${todo.completedDate}` : ''}</div>`;
-      const actions = document.createElement('div');
-      actions.className = 'actions';
-      const toggle = document.createElement('button');
-      toggle.className = 'ghost';
-      toggle.textContent = todo.completed ? 'Undo' : 'Done';
-      toggle.addEventListener('click', () => toggleTodo(todo.id));
-      const remove = document.createElement('button');
-      remove.className = 'ghost';
-      remove.textContent = '✕';
-      remove.addEventListener('click', () => removeTodo(todo.id));
-      actions.appendChild(toggle);
-      actions.appendChild(remove);
-      row.appendChild(left);
-      row.appendChild(actions);
-      list.appendChild(row);
-    });
-
-    const countLabel = qs('#todo-today-count');
-    const dueToday = state.todos.filter(t => !t.completed && (t.dueDate === cachedToday || !t.dueDate)).length;
-    if (countLabel) countLabel.textContent = `${dueToday} tasks ready for today`;
-  };
-
-  const toggleTodo = (id) => {
-    state.todos = state.todos.map(todo => {
-      if (todo.id !== id) return todo;
-      const dateRef = todo.dueDate || cachedToday;
-      const record = ensureRecord(dateRef);
-      if (todo.completed) {
-        record.todoCount = Math.max(0, (record.todoCount || 0) - 1);
-        return { ...todo, completed: false, completedDate: '' };
-      }
-      record.todoCount = (record.todoCount || 0) + 1;
-      return { ...todo, completed: true, completedDate: dateRef };
-    });
-    persist();
-    render();
-  };
-
-  const removeTodo = (id) => {
-    const todo = state.todos.find(t => t.id === id);
-    if (todo?.completed) {
-      const record = ensureRecord(todo.completedDate || cachedToday);
-      record.todoCount = Math.max(0, (record.todoCount || 0) - 1);
-    }
-    state.todos = state.todos.filter(t => t.id !== id);
-    persist();
-    render();
-  };
-
-  const clearCompleted = () => {
-    state.todos.forEach(todo => {
-      if (todo.completed && todo.completedDate) {
-        const record = ensureRecord(todo.completedDate);
-        record.todoCount = Math.max(0, (record.todoCount || 0) - 1);
+  dom.markAll.addEventListener('click', () => {
+    const day = getDay(today());
+    state.habits.forEach((h) => {
+      if (shouldShowHabitToday(h, today())) {
+        day.habits[h.id] = true;
       }
     });
-    state.todos = state.todos.filter(t => !t.completed);
-    persist();
-    render();
-  };
+    saveState(state);
+    renderChecklist();
+    renderHistory();
+  });
 
-  const renderSnapshot = () => {
-    const stats = metrics();
-    const list = qs('#stat-list');
-    if (!list) return;
-    list.innerHTML = '';
-    const entries = [
-      { label: 'Percent complete', value: `${stats.percent}%`, detail: `${stats.completed}/${stats.totalTargets || 0} steps` },
-      { label: 'Active goals', value: stats.goalCount, detail: 'scheduled today' },
-      { label: 'Year total', value: stats.yearCount, detail: 'actions logged' },
-      { label: 'Streak', value: `${stats.streak} days`, detail: 'keep it alive' }
-    ];
-    entries.forEach(item => {
-      const li = document.createElement('li');
-      li.innerHTML = `<div class="label">${item.label}</div><div class="value">${item.value}</div><div class="muted">${item.detail}</div>`;
-      list.appendChild(li);
-    });
-  };
+  dom.taskForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const title = dom.taskInput.value.trim();
+    if (!title) return;
+    const day = getDay(today());
+    day.tasks.push({ id: randomId(), title, done: false });
+    dom.taskInput.value = '';
+    saveState(state);
+    renderTasks();
+    renderHistory();
+  });
 
-  const renderWeeklyGraphic = () => {
-    const container = qs('#week-graphic');
-    if (!container) return;
-    container.innerHTML = '';
-    const { data } = summarizeRange(7);
-    if (!data.length) {
-      const p = document.createElement('p');
-      p.className = 'muted';
-      p.textContent = 'Add goals or tasks to see the weekly action map.';
-      container.appendChild(p);
-      return;
+  dom.clearDone.addEventListener('click', () => {
+    const day = getDay(today());
+    day.tasks = day.tasks.filter((t) => !t.done);
+    saveState(state);
+    renderTasks();
+    renderHistory();
+  });
+
+  dom.journalForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const text = dom.journalText.value.trim();
+    if (!text) return;
+    const entry = {
+      id: randomId(),
+      title: dom.journalTitle.value.trim(),
+      text,
+      created: Date.now()
+    };
+    const day = getDay(today());
+    day.journal.push(entry);
+    dom.journalTitle.value = '';
+    dom.journalText.value = '';
+    saveState(state);
+    renderJournal();
+    renderHistory();
+  });
+
+  dom.reset.addEventListener('click', () => {
+    if (!confirm('This clears all saved habits, tasks, and journal entries. Continue?')) return;
+    Object.assign(state, defaultState());
+    saveState(state);
+    renderAll();
+  });
+
+  dom.themeToggle.addEventListener('change', () => {
+    state.theme = dom.themeToggle.checked ? 'light' : 'dark';
+    applyTheme();
+    saveState(state);
+  });
+
+  const applyTheme = () => {
+    const mode = state.theme || 'dark';
+    if (mode === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
     }
-    const max = Math.max(...data.map(d => Math.max(d.done, d.target)), 1);
-    data.forEach(entry => {
-      const col = document.createElement('div');
-      col.className = 'week-column';
-      const label = document.createElement('div');
-      label.className = 'week-label';
-      label.textContent = new Date(entry.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short' });
-      const bar = document.createElement('div');
-      bar.className = 'week-bar';
-      const fill = document.createElement('div');
-      fill.className = 'week-fill';
-      fill.style.height = `${Math.max(8, Math.round((entry.done / max) * 100))}%`;
-      bar.appendChild(fill);
-      const micro = document.createElement('div');
-      micro.className = 'week-micro';
-      micro.textContent = `${entry.done} actions`;
-      col.append(label, bar, micro);
-      container.appendChild(col);
-    });
+    dom.themeToggle.checked = mode === 'light';
   };
 
-  const renderInsights = () => {
-    const wrap = qs('#insight-cards');
-    if (!wrap) return;
-    const horizon = summarizeRange(30);
-    const thisWeek = summarizeRange(7);
-    const todayStats = metrics();
-    wrap.innerHTML = '';
-    const items = [
-      { label: 'Avg completion (30d)', value: `${horizon.averageCompletion}%`, detail: `${horizon.averageActions} actions/day` },
-      { label: 'Longest streak', value: `${computeStreak()} days`, detail: 'current + historical' },
-      { label: 'Best day (30d)', value: horizon.bestDay || '—', detail: `${horizon.bestTotal} actions` },
-      { label: 'This week', value: `${thisWeek.totalActions} actions`, detail: 'goal + todo' },
-      { label: 'Active goals', value: todayStats.goalCount, detail: 'scheduled today' },
-      { label: 'Todo momentum', value: thisWeek.todoActions, detail: 'tasks shipped in 7d' }
-    ];
-    items.forEach(item => {
-      const card = document.createElement('div');
-      card.className = 'insight-card';
-      card.innerHTML = `<div class="label">${item.label}</div><div class="value">${item.value}</div><div class="detail">${item.detail}</div>`;
-      wrap.appendChild(card);
-    });
+  const renderAll = () => {
+    dom.todayLabel.textContent = formatDate(today());
+    renderChecklist();
+    renderTasks();
+    renderLibrary();
+    renderJournal();
+    renderHistory();
+    renderProgress();
   };
 
-  const renderBreaks = () => {
-    const list = qs('#break-list');
-    const empty = qs('#break-empty');
-    if (!list) return;
-    list.innerHTML = '';
-    if (timerId) clearInterval(timerId);
-
-    if (!state.breaks.length) {
-      if (empty) empty.style.display = 'block';
-      return;
-    }
-    if (empty) empty.style.display = 'none';
-
-    state.breaks.slice().sort((a, b) => a.name.localeCompare(b.name)).forEach(item => {
-      const row = document.createElement('div');
-      row.className = 'break-row';
-      row.innerHTML = `<div class="left"><strong>${item.name}</strong><div class="muted">since ${item.startDate}</div></div><div class="badge" data-start="${item.startDate}"></div>`;
-      list.appendChild(row);
-    });
-
-    updateTimers();
-    timerId = setInterval(updateTimers, 1000);
-  };
-
-  const renderJournals = () => {
-    const list = qs('#journal-list');
-    const dateInput = qs('#journal-date');
-    if (dateInput && !dateInput.value) dateInput.value = cachedToday;
-    if (!list) return;
-    const query = (qs('#journal-search')?.value || '').toLowerCase();
-    list.innerHTML = '';
-    const entries = state.logs.slice().sort((a, b) => b.date.localeCompare(a.date));
-    const filtered = entries.filter(e =>
-      e.text.toLowerCase().includes(query) || (e.title || '').toLowerCase().includes(query)
-    );
-    if (!filtered.length) {
-      const p = document.createElement('p');
-      p.className = 'muted';
-      p.textContent = query ? 'No entries match your search.' : 'Log how the day went and reflect.';
-      list.appendChild(p);
-      return;
-    }
-    filtered.forEach(entry => {
-      const row = document.createElement('div');
-      row.className = 'journal-entry';
-      const head = document.createElement('div');
-      head.className = 'entry-head';
-      head.innerHTML = `<div><strong>${entry.title || 'Day log'}</strong><div class="entry-meta">${entry.date}</div></div>`;
-      const remove = document.createElement('button');
-      remove.className = 'ghost';
-      remove.textContent = 'Remove';
-      remove.addEventListener('click', () => removeJournal(entry.id));
-      head.appendChild(remove);
-      const body = document.createElement('div');
-      body.textContent = entry.text;
-      row.append(head, body);
-      list.appendChild(row);
-    });
-  };
-
-  const renderDreams = () => {
-    const list = qs('#dream-list');
-    const dateInput = qs('#dream-date');
-    if (dateInput && !dateInput.value) dateInput.value = cachedToday;
-    if (!list) return;
-    const query = (qs('#dream-search')?.value || '').toLowerCase();
-    list.innerHTML = '';
-    const entries = state.dreams.slice().sort((a, b) => b.date.localeCompare(a.date));
-    const filtered = entries.filter(e =>
-      e.text.toLowerCase().includes(query) || (e.title || '').toLowerCase().includes(query)
-    );
-    if (!filtered.length) {
-      const p = document.createElement('p');
-      p.className = 'muted';
-      p.textContent = query ? 'No dreams match your search.' : 'Capture morning memories before they fade.';
-      list.appendChild(p);
-      return;
-    }
-    filtered.forEach(entry => {
-      const row = document.createElement('div');
-      row.className = 'dream-entry';
-      const head = document.createElement('div');
-      head.className = 'entry-head';
-      head.innerHTML = `<div><strong>${entry.title || 'Dream'}</strong><div class="entry-meta">${entry.date}</div></div>`;
-      const remove = document.createElement('button');
-      remove.className = 'ghost';
-      remove.textContent = 'Remove';
-      remove.addEventListener('click', () => removeDream(entry.id));
-      head.appendChild(remove);
-      const body = document.createElement('div');
-      body.textContent = entry.text;
-      row.append(head, body);
-      list.appendChild(row);
-    });
-  };
-
-  const updateTimers = () => {
-    const now = Date.now();
-    qsa('[data-start]').forEach(el => {
-      const start = new Date(el.dataset.start + 'T00:00:00').getTime();
-      const diff = Math.max(0, now - start);
-      const days = Math.floor(diff / 86400000);
-      const hours = Math.floor((diff % 86400000) / 3600000);
-      const minutes = Math.floor((diff % 3600000) / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-      el.textContent = `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
-    });
-  };
-
-  const renderGoalsPage = () => {
-    const list = qs('#goal-list');
-    const empty = qs('#goal-empty');
-    if (!list) return;
-    list.innerHTML = '';
-    const items = state.goals.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    if (!items.length && empty) empty.style.display = 'block'; else if (empty) empty.style.display = 'none';
-
-    items.forEach(goal => {
-      const row = document.createElement('div');
-      row.className = 'goal-row';
-      row.innerHTML = `
-        <div class="left">
-          <strong>${goal.name}</strong>
-          <div class="meta">${humanFrequency(goal)} · Target ${goal.target}${goal.group ? ` · ${goal.group}` : ''}</div>
-        </div>
-        <div class="actions">
-          <button class="ghost" aria-label="Archive">${goal.archived ? 'Unarchive' : 'Archive'}</button>
-          <button class="ghost" aria-label="Delete">Delete</button>
-        </div>`;
-      const [archiveBtn, delBtn] = row.querySelectorAll('button');
-      archiveBtn.addEventListener('click', () => toggleArchive(goal.id));
-      delBtn.addEventListener('click', () => removeGoal(goal.id));
-      list.appendChild(row);
-    });
-
-    const manage = qs('#break-manage');
-    const manageEmpty = qs('#break-manage-empty');
-    if (manage) manage.innerHTML = '';
-    if (!state.breaks.length && manageEmpty) manageEmpty.style.display = 'block';
-    if (state.breaks.length && manageEmpty) manageEmpty.style.display = 'none';
-    state.breaks.forEach(item => {
-      const row = document.createElement('div');
-      row.className = 'goal-row';
-      row.innerHTML = `<div class="left"><strong>${item.name}</strong><div class="meta">since ${item.startDate}</div></div><button class="ghost">Remove</button>`;
-      row.querySelector('button').addEventListener('click', () => removeBreak(item.id));
-      manage?.appendChild(row);
-    });
-  };
-
-  const toggleArchive = (id) => {
-    const date = cachedToday;
-    state.goals = state.goals.map(g => g.id === id ? { ...g, archived: !g.archived, archivedDate: g.archived ? undefined : date } : g);
-    persist();
-    render();
-  };
-
-  const removeGoal = (id) => {
-    state.goals = state.goals.filter(g => g.id !== id);
-    Object.values(state.completions).forEach(r => delete r.goals?.[id]);
-    persist();
-    render();
-  };
-
-  const renderHistory = () => {
-    const container = qs('#history-matrix');
-    if (!container) return;
-    container.innerHTML = '';
-    if (!state.goals.length) {
-      const p = document.createElement('p');
-      p.className = 'muted';
-      p.textContent = 'No goals defined yet.';
-      container.appendChild(p);
-      return;
-    }
-
-    const dates = datesFromYearStart();
-    const table = document.createElement('table');
-    table.className = 'history-table';
-    const thead = document.createElement('thead');
-    const headRow = document.createElement('tr');
-    const empty = document.createElement('th');
-    empty.className = 'left';
-    empty.textContent = 'Goal';
-    headRow.appendChild(empty);
-    dates.forEach(d => {
-      const th = document.createElement('th');
-      th.textContent = new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' });
-      headRow.appendChild(th);
-    });
-    thead.appendChild(headRow);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    state.goals.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).forEach(goal => {
-      const row = document.createElement('tr');
-      const left = document.createElement('td');
-      left.className = 'left';
-      left.innerHTML = `<strong>${goal.name}</strong><div class="muted">${goal.createdDate}${goal.archived ? ' · archived' : ''}</div>`;
-      row.appendChild(left);
-      dates.forEach(date => {
-        const cell = document.createElement('td');
-        const applicable = isGoalDue(goal, date);
-        if (!applicable) cell.className = 'idle';
-        else {
-          const record = state.completions[date];
-          const done = (record?.goals?.[goal.id] || 0) >= (goal.target || 1);
-          cell.className = done ? 'done' : 'miss';
-          cell.textContent = done ? '•' : '';
-        }
-        row.appendChild(cell);
-      });
-      tbody.appendChild(row);
-    });
-    table.appendChild(tbody);
-    container.appendChild(table);
-  };
-
-  const datesFromYearStart = () => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const out = [];
-    while (start <= now) {
-      out.push(toISO(start));
-      start.setDate(start.getDate() + 1);
-    }
-    return out;
-  };
-
-  const renderAnalytics = () => {
-    const range = Number(qs('#analytics-range')?.value || 7);
-    const summaryData = summarizeRange(range);
-    const data = summaryData.data;
-    const summary = qs('#analytics-summary');
-    if (summary) {
-      summary.innerHTML = '';
-      const items = [
-        { label: 'Average completion', value: `${summaryData.averageCompletion}%` },
-        { label: 'Longest streak', value: `${summaryData.longest} days` },
-        { label: 'Best day', value: summaryData.bestDay || '—' },
-        { label: 'Goals defined', value: state.goals.length }
-      ];
-      items.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `<div class="label">${item.label}</div><div class="value">${item.value}</div>`;
-        summary.appendChild(card);
-      });
-    }
-
-    const canvas = qs('#bar-chart');
-    if (canvas?.getContext) {
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const max = Math.max(...data.map(d => d.done), 1);
-      const barWidth = canvas.width / Math.max(data.length, 1);
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent');
-      data.forEach((entry, index) => {
-        const height = (entry.done / max) * (canvas.height - 20);
-        ctx.fillRect(index * barWidth, canvas.height - height, barWidth - 4, height);
-      });
-    }
-  };
-
-  const exportCsv = () => {
-    const rows = [['Date', 'Goal ID', 'Goal count', 'Todos']];
-    Object.entries(state.completions).forEach(([date, rec]) => {
-      const goals = rec.goals || {};
-      if (!Object.keys(goals).length) rows.push([date, '', 0, rec.todoCount || 0]);
-      Object.entries(goals).forEach(([id, count]) => rows.push([date, id, count, rec.todoCount || 0]));
-    });
-    const blob = new Blob([rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'habits.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  // forms and nav
-  const bindEvents = () => {
-    qsa('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        const target = tab.dataset.target;
-        activePage = target;
-        qsa('.tab').forEach(t => t.classList.toggle('active', t === tab));
-        qsa('.page').forEach(page => page.classList.toggle('hidden', page.id !== target));
-        render();
-      });
-    });
-
-    qs('#nudge-add-goal')?.addEventListener('click', () => {
-      document.querySelector('.tab[data-target="goals"]')?.click();
-      qs('#goal-input')?.focus();
-    });
-    qs('#open-quit')?.addEventListener('click', () => document.querySelector('.tab[data-target="goals"]')?.click());
-
-    qs('#theme-select')?.addEventListener('change', (e) => setTheme(e.target.value));
-    qs('#accent-picker')?.addEventListener('input', (e) => setAccent(e.target.value));
-
-    qs('#goal-form')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const name = qs('#goal-input').value.trim();
-      if (!name) return;
-      const group = qs('#goal-group').value.trim();
-      const target = Number(qs('#goal-target').value || 1);
-      const frequency = qs('#goal-frequency').value;
-      const times = Number(qs('#goal-times').value || 3);
-      const days = qsa('#goal-days input:checked').map(c => Number(c.value));
-      state.goals.push({
-        id: randomId(),
-        name,
-        group,
-        target: Math.max(1, target),
-        frequency,
-        times,
-        days,
-        createdDate: cachedToday,
-        archived: false,
-        order: state.goals.length
-      });
-      persist();
-      e.target.reset();
-      render();
-    });
-
-    qs('#todo-form')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const text = qs('#todo-input').value.trim();
-      const due = qs('#todo-due').value;
-      if (!text) return;
-      state.todos.push({ id: randomId(), text, dueDate: due, completed: false, completedDate: '' });
-      persist();
-      e.target.reset();
-      render();
-    });
-
-    qs('#clear-completed')?.addEventListener('click', clearCompleted);
-
-    qs('#break-form')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const name = qs('#break-input').value.trim();
-      const start = qs('#break-start').value || cachedToday;
-      if (!name) return;
-      state.breaks.push({ id: randomId(), name, startDate: start });
-      persist();
-      e.target.reset();
-      qs('#break-start').value = cachedToday;
-      render();
-    });
-
-    qs('#analytics-range')?.addEventListener('change', renderAnalytics);
-    qs('#export-csv')?.addEventListener('click', exportCsv);
-
-    qs('#journal-form')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const text = qs('#journal-text').value.trim();
-      if (!text) return;
-      const date = qs('#journal-date').value || cachedToday;
-      const title = qs('#journal-title').value.trim();
-      state.logs.push({ id: randomId(), date, title, text });
-      persist();
-      e.target.reset();
-      qs('#journal-date').value = date;
-      renderJournals();
-    });
-    qs('#journal-search')?.addEventListener('input', renderJournals);
-
-    qs('#dream-form')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const text = qs('#dream-text').value.trim();
-      if (!text) return;
-      const date = qs('#dream-date').value || cachedToday;
-      const title = qs('#dream-title').value.trim();
-      state.dreams.push({ id: randomId(), date, title, text });
-      persist();
-      e.target.reset();
-      qs('#dream-date').value = date;
-      renderDreams();
-    });
-    qs('#dream-search')?.addEventListener('input', renderDreams);
-  };
-
-  const removeBreak = (id) => {
-    state.breaks = state.breaks.filter(b => b.id !== id);
-    persist();
-    render();
-  };
-
-  const removeJournal = (id) => {
-    state.logs = state.logs.filter(entry => entry.id !== id);
-    persist();
-    renderJournals();
-  };
-
-  const removeDream = (id) => {
-    state.dreams = state.dreams.filter(entry => entry.id !== id);
-    persist();
-    renderDreams();
-  };
-
-  const refreshDay = () => {
-    const now = today();
-    if (now !== cachedToday) {
-      cachedToday = now;
-      render();
-    }
-  };
-
-  // bootstrap
-  qs('#break-start')?.setAttribute('value', cachedToday);
-  bindEvents();
-  render();
-  setInterval(refreshDay, 60000);
+  // Initial setup
+  dom.dayPicker.style.display = dom.habitCadence.value === 'custom' ? 'flex' : 'none';
+  applyTheme();
+  renderAll();
 })();
