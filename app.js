@@ -1,8 +1,22 @@
 (function () {
   const STORAGE_KEY = 'habitFreshV1';
   const PAGE = document.body.dataset.page || 'home';
+
+  const parseDateValue = (value) => {
+    if (value instanceof Date) return new Date(value);
+    if (typeof value === 'string') {
+      const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (match) {
+        const [, year, month, day] = match;
+        return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0, 0);
+      }
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
   const dayKey = (value = new Date()) => {
-    const d = new Date(value);
+    const d = parseDateValue(value);
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
@@ -10,12 +24,13 @@
   };
   const today = () => dayKey(new Date());
   const startOfDayIso = (value = new Date()) => {
-    const d = new Date(value);
+    const d = parseDateValue(value);
     d.setHours(0, 0, 0, 0);
     return d.toISOString();
   };
   const startOfMonthKey = (value = new Date()) => {
-    const d = new Date(value);
+    const d = parseDateValue(value);
+    d.setHours(12, 0, 0, 0);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
   };
   const randomId = () => (crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -80,8 +95,10 @@
   const selectedDate = () => {
     const chosen = dayKey(state.selectedDate || today());
     const todayStart = today();
-    const candidate = new Date(`${chosen}T12:00:00`);
-    const now = new Date(`${todayStart}T12:00:00`);
+    const candidate = parseDateValue(chosen);
+    candidate.setHours(12, 0, 0, 0);
+    const now = parseDateValue(todayStart);
+    now.setHours(12, 0, 0, 0);
     return candidate > now ? todayStart : chosen;
   };
 
@@ -250,10 +267,10 @@
   };
 
   const formatDate = (value, options = { weekday: 'long', month: 'long', day: 'numeric' }) =>
-    new Intl.DateTimeFormat(undefined, options).format(new Date(value));
+    new Intl.DateTimeFormat(undefined, options).format(parseDateValue(value));
 
   const shouldShowHabitToday = (habit, dateValue) => {
-    const day = new Date(dateValue).getDay();
+    const day = parseDateValue(dateValue).getDay();
     if (habit.cadence === 'daily') return true;
     if (habit.cadence === 'weekdays') return day >= 1 && day <= 5;
     if (habit.cadence === 'custom') return (habit.days || []).includes(day);
@@ -761,7 +778,7 @@
 
   const streakThrough = (dateValue) => {
     let streak = 0;
-    const start = new Date(dateValue);
+    const start = parseDateValue(dateValue);
     for (let i = 0; i < 365; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() - i);
@@ -906,7 +923,8 @@
     if (dom.pieHabit) dom.pieHabit.value = selectedHabitId;
 
     const daysBack = Number(dom.pieRange ? dom.pieRange.value : 14) || 14;
-    const anchor = new Date(`${selectedDate()}T12:00:00`);
+    const anchor = parseDateValue(selectedDate());
+    anchor.setHours(12, 0, 0, 0);
     const dates = Array.from({ length: daysBack }).map((_, i) => {
       const d = new Date(anchor);
       d.setDate(anchor.getDate() - i);
@@ -953,7 +971,7 @@
       row.className = 'week-row';
       const label = document.createElement('div');
       label.className = 'week-label';
-      label.textContent = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(new Date(date));
+      label.textContent = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(parseDateValue(date));
       const track = document.createElement('div');
       track.className = 'week-track';
       const fill = document.createElement('span');
@@ -976,8 +994,9 @@
     if (!dom.monthlyStrip) return;
     renderHeatmapFilter();
     dom.monthlyStrip.innerHTML = '';
-    const cursor = new Date(`${state.monthCursor || startOfMonthKey()}T12:00:00`);
-    const monthStart = Number.isNaN(cursor.getTime()) ? new Date(`${startOfMonthKey()}T12:00:00`) : cursor;
+    const cursor = parseDateValue(state.monthCursor || startOfMonthKey());
+    cursor.setHours(12, 0, 0, 0);
+    const monthStart = Number.isNaN(cursor.getTime()) ? parseDateValue(startOfMonthKey()) : cursor;
     monthStart.setDate(1);
     const year = monthStart.getFullYear();
     const month = monthStart.getMonth();
@@ -1052,11 +1071,13 @@
   };
 
   const changeMonth = (delta) => {
-    const base = new Date(`${state.monthCursor || startOfMonthKey()}T12:00:00`);
-    if (Number.isNaN(base.getTime())) base.setTime(new Date(`${startOfMonthKey()}T12:00:00`).getTime());
+    const base = parseDateValue(state.monthCursor || startOfMonthKey());
+    base.setHours(12, 0, 0, 0);
+    if (Number.isNaN(base.getTime())) base.setTime(parseDateValue(startOfMonthKey()).getTime());
     base.setDate(1);
     base.setMonth(base.getMonth() + delta);
-    const todayStart = new Date(`${startOfMonthKey()}T12:00:00`);
+    const todayStart = parseDateValue(startOfMonthKey());
+    todayStart.setHours(12, 0, 0, 0);
     if (base > todayStart) base.setTime(todayStart.getTime());
     state.monthCursor = startOfMonthKey(base);
     saveState();
@@ -1070,7 +1091,7 @@
     const safeYear = Math.min(state.currentYear || todayDate.getFullYear(), todayDate.getFullYear());
     state.currentYear = safeYear;
     const currentYearValue = safeYear;
-    const storedYears = Object.keys(state.days).map((key) => new Date(key).getFullYear());
+    const storedYears = Object.keys(state.days).map((key) => parseDateValue(key).getFullYear());
     const minYear = Math.min(...(storedYears.length ? storedYears : [currentYearValue, 2025]));
     const maxYear = todayDate.getFullYear();
     if (dom.yearPicker) {
@@ -1554,8 +1575,10 @@
     syncHiddenSectionToggles();
     const currentMonthStart = startOfMonthKey();
     const chosenMonth = state.monthCursor || currentMonthStart;
-    const cursorDate = new Date(`${chosenMonth}T12:00:00`);
-    const clampDate = new Date(`${currentMonthStart}T12:00:00`);
+    const cursorDate = parseDateValue(chosenMonth);
+    cursorDate.setHours(12, 0, 0, 0);
+    const clampDate = parseDateValue(currentMonthStart);
+    clampDate.setHours(12, 0, 0, 0);
     if (cursorDate > clampDate) state.monthCursor = currentMonthStart;
     state.monthCursor = state.monthCursor || currentMonthStart;
     renderHeatmapFilter();
