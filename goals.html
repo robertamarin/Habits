@@ -70,6 +70,23 @@
       </header>
       <form id="habit-form" class="stack">
         <input id="habit-input" type="text" placeholder="Name (Stretch, Write, Meditate)" required />
+        <div class="grid">
+          <label class="stacked">Icon
+            <select id="habit-icon">
+              <option value="">None</option>
+              <option value="🔥">🔥 Fire</option>
+              <option value="✅">✅ Check</option>
+              <option value="🌿">🌿 Calm</option>
+              <option value="📚">📚 Study</option>
+              <option value="💪">💪 Strength</option>
+              <option value="🧘">🧘 Flow</option>
+              <option value="🌅">🌅 Dawn</option>
+            </select>
+          </label>
+          <label class="stacked">Accent
+            <input id="habit-color" type="color" value="#7c3aed" />
+          </label>
+        </div>
         <label class="stacked">Cadence
           <select id="habit-cadence">
             <option value="daily">Every day</option>
@@ -122,6 +139,29 @@
           <option value="midnight">Midnight neon</option>
         </select>
       </label>
+      <div class="stack">
+        <p class="eyebrow">Visibility</p>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="weekly" />
+          <span>Hide weekly view</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="monthly" />
+          <span>Hide monthly strip</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="history" />
+          <span>Hide year &amp; month view</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="journal" />
+          <span>Hide journal</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="quit" />
+          <span>Hide quit tracker</span>
+        </label>
+      </div>
       <div class="row end">
         <span class="muted">Full reset wipes everything</span>
         <button id="reset-data" type="button" class="ghost danger">Reset data</button>
