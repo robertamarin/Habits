@@ -36,7 +36,10 @@
           <h2 id="today-label"></h2>
         </div>
         <div class="row">
-          <button type="button" id="export-data" class="ghost">Export data</button>
+          <input type="file" id="import-file" accept=".json,.csv" class="hidden" />
+          <button type="button" id="import-data" class="ghost">Import data</button>
+          <button type="button" id="export-data" class="ghost">Export JSON</button>
+          <button type="button" id="export-csv" class="ghost">Export CSV</button>
           <button id="settings-button-top" type="button" class="ghost">Settings</button>
         </div>
       </div>
