@@ -1,307 +1,162 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Habits • Execution Ledger</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Habits — Fresh Start</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="topbar shell">
+  <header class="top">
     <div class="brand">
       <div class="dot"></div>
       <div>
-        <div class="eyebrow">Execution ledger</div>
-        <strong>Habit Engine</strong>
+        <p class="eyebrow">Rebuilt for speed</p>
+        <h1>Habit Engine</h1>
       </div>
     </div>
-    <nav class="tabs" aria-label="Primary">
-      <button class="tab active" data-target="today">Today</button>
-      <button class="tab" data-target="goals">Goals</button>
-      <button class="tab" data-target="history">History</button>
-    </nav>
-    <div class="controls">
-      <label class="chip">
-        Theme
-        <select id="theme-select" aria-label="Theme picker">
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
-        </select>
-      </label>
-      <label class="chip">
-        Accent
-        <input type="color" id="accent-picker" aria-label="Accent colour" value="#7c3aed">
+    <div class="actions">
+      <button id="reset-data" type="button" class="ghost">Reset data</button>
+      <label class="switch">
+        <input type="checkbox" id="theme-toggle" aria-label="Toggle light mode" />
+        <span>Light mode</span>
       </label>
     </div>
   </header>
 
-  <main class="shell">
-    <section id="today" class="page">
-      <div class="page-head">
-        <div>
-          <p class="eyebrow" id="today-label"></p>
-          <h1>Daily execution</h1>
-          <p class="muted">Ship small actions, keep the streak alive. Today is a new chance to fill the grid.</p>
-        </div>
-        <div class="stack">
-          <div class="pill" id="quote">Momentum starts with one tiny win.</div>
-          <div class="pill" id="xp-level"></div>
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Today</p>
+        <h2 id="today-label"></h2>
+        <p class="muted">Stay on track with a simple checklist and lightweight history. Everything stores locally in your browser.</p>
+        <div class="progress-wrap">
+          <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="progress-bar"></div>
+          </div>
+          <div class="legend">
+            <div class="pill">
+              <strong id="complete-count">0</strong>
+              <span class="muted">completed</span>
+            </div>
+            <div class="pill">
+              <strong id="habit-count">0</strong>
+              <span class="muted">habits today</span>
+            </div>
+            <div class="pill">
+              <strong id="streak"></strong>
+              <span class="muted">day streak</span>
+            </div>
+          </div>
         </div>
       </div>
-
-      <section class="panel">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">Progress</p>
-            <strong id="progress-label">0% complete</strong>
-          </div>
-          <div class="stat-grid" id="stat-grid"></div>
-        </div>
-        <div class="progress">
-          <div id="progress-bar" class="progress-bar"></div>
-        </div>
-        <div class="week-graphic" id="week-graphic" aria-label="Weekly actions heatmap"></div>
-      </section>
-
-      <div class="grid">
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Today\'s plan</p>
-              <h2 id="goal-summary">No goals yet</h2>
-            </div>
-            <button class="ghost" id="nudge-add-goal" type="button">Add goal</button>
-          </div>
-          <div class="list" id="goal-list-today"></div>
-          <p class="muted" id="empty-goals">Nothing scheduled. Add a goal to start tracking.</p>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Quick wins</p>
-              <h2>To-dos</h2>
-            </div>
-          </div>
-          <form id="todo-form" class="row">
-            <input type="text" id="todo-input" placeholder="Add a fast task" required>
-            <input type="date" id="todo-due" aria-label="Due date">
-            <button type="submit">Add</button>
-          </form>
-          <div class="list" id="todo-list"></div>
-          <div class="row end">
-            <div class="muted" id="todo-today-count"></div>
-            <button class="ghost" id="clear-completed" type="button">Clear done</button>
-          </div>
-        </section>
-      </div>
-
-      <div class="grid">
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Momentum</p>
-              <h2>Snapshot</h2>
-            </div>
-          </div>
-          <ul class="compact" id="stat-list"></ul>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Quit trackers</p>
-              <h2>Time since last</h2>
-            </div>
-            <button class="ghost" id="open-quit" type="button">Manage</button>
-          </div>
-          <div class="list" id="break-list"></div>
-          <p class="muted" id="break-empty">Add quit habits in Goals.</p>
-        </section>
-      </div>
-
-      <section class="panel">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">Analytics pulse</p>
-            <h2>Big picture</h2>
-          </div>
-        </div>
-        <div class="insights" id="insight-cards"></div>
-      </section>
-
-      <div class="grid">
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Daily log</p>
-              <h2>Journal the day</h2>
-            </div>
-          </div>
-          <form id="journal-form" class="stack">
-            <div class="row wrap">
-              <input type="date" id="journal-date" aria-label="Journal date">
-              <input type="text" id="journal-title" placeholder="Title (optional)">
-            </div>
-            <textarea id="journal-text" rows="3" placeholder="What happened? Wins, setbacks, lessons." required></textarea>
-            <div class="row wrap">
-              <button type="submit">Save log</button>
-              <input type="search" id="journal-search" placeholder="Search log entries">
-            </div>
-          </form>
-          <div class="list" id="journal-list"></div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Dream capture</p>
-              <h2>Morning notes</h2>
-            </div>
-          </div>
-          <form id="dream-form" class="stack">
-            <div class="row wrap">
-              <input type="date" id="dream-date" aria-label="Dream date">
-              <input type="text" id="dream-title" placeholder="Dream headline">
-            </div>
-            <textarea id="dream-text" rows="3" placeholder="What do you remember?" required></textarea>
-            <div class="row wrap">
-              <button type="submit">Save dream</button>
-              <input type="search" id="dream-search" placeholder="Search dreams">
-            </div>
-          </form>
-          <div class="list" id="dream-list"></div>
-        </section>
+      <div class="card note">
+        <p class="eyebrow">Why this feels faster</p>
+        <ul>
+          <li>Fresh markup, zero legacy widgets.</li>
+          <li>Lean CSS and JavaScript only where necessary.</li>
+          <li>Local-only storage — no network requests.</li>
+        </ul>
+        <p class="muted">If things ever feel slow again, use the Reset button above to clear saved data.</p>
       </div>
     </section>
 
-    <section id="goals" class="page hidden">
-      <div class="page-head">
-        <div>
-          <p class="eyebrow">Configuration</p>
-          <h1>Goals</h1>
-          <p class="muted">Define what a complete day means. Changes apply to future days.</p>
-        </div>
-      </div>
-
-      <div class="grid">
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">New goal</p>
-              <h2>Create</h2>
-            </div>
-          </div>
-          <form id="goal-form" class="stack">
-            <input type="text" id="goal-input" placeholder="Write, run, stretch..." required>
-            <div class="row">
-              <input type="text" id="goal-group" placeholder="Group (Morning, Health)">
-              <label class="stacked">Target
-                <input type="number" id="goal-target" min="1" value="1">
-              </label>
-            </div>
-            <div class="row">
-              <label class="stacked">Frequency
-                <select id="goal-frequency">
-                  <option value="daily">Every day</option>
-                  <option value="weekdays">Weekdays</option>
-                  <option value="custom">Specific days</option>
-                  <option value="week">Times per week</option>
-                  <option value="month">Times per month</option>
-                </select>
-              </label>
-              <label class="stacked">Times per period
-                <input type="number" id="goal-times" min="1" value="3">
-              </label>
-            </div>
-            <div class="days" id="goal-days">
-              <label><input type="checkbox" value="0">Sun</label>
-              <label><input type="checkbox" value="1">Mon</label>
-              <label><input type="checkbox" value="2">Tue</label>
-              <label><input type="checkbox" value="3">Wed</label>
-              <label><input type="checkbox" value="4">Thu</label>
-              <label><input type="checkbox" value="5">Fri</label>
-              <label><input type="checkbox" value="6">Sat</label>
-            </div>
-            <button type="submit">Add goal</button>
-          </form>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Active goals</p>
-              <h2>Track list</h2>
-            </div>
-          </div>
-          <div class="list" id="goal-list"></div>
-          <p class="muted" id="goal-empty">No goals yet.</p>
-        </section>
-      </div>
-
-      <section class="panel">
-        <div class="panel-head">
+    <section class="grid">
+      <article class="card">
+        <header class="card-head">
           <div>
-            <p class="eyebrow">Habits to quit</p>
-            <h2>Clean streaks</h2>
+            <p class="eyebrow">Checklist</p>
+            <h3>Today&rsquo;s habits</h3>
           </div>
-        </div>
-        <form id="break-form" class="row">
-          <input type="text" id="break-input" placeholder="Stop sugar" required>
-          <label class="stacked">Quit date
-            <input type="date" id="break-start" required>
-          </label>
-          <button type="submit">Add tracker</button>
+          <button id="mark-all" type="button" class="ghost">Mark all done</button>
+        </header>
+        <div id="habit-list" class="list"></div>
+        <p class="muted" id="empty-habits">Add habits below to see them here.</p>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <p class="eyebrow">Quick tasks</p>
+            <h3>One-off wins</h3>
+          </div>
+        </header>
+        <form id="task-form" class="stack">
+          <input id="task-input" type="text" placeholder="Add a quick task" required />
+          <button type="submit">Add task</button>
         </form>
-        <div class="list" id="break-manage"></div>
-        <p class="muted" id="break-manage-empty">No quit trackers yet.</p>
-      </section>
+        <div id="task-list" class="list"></div>
+        <div class="row end">
+          <p class="muted" id="task-count"></p>
+          <button id="clear-done" type="button" class="ghost">Clear completed</button>
+        </div>
+      </article>
     </section>
 
-    <section id="history" class="page hidden">
-      <div class="page-head">
-        <div>
-          <p class="eyebrow">Ledger</p>
-          <h1>History</h1>
-          <p class="muted">A clean record of what shipped each day.</p>
-        </div>
-        <div class="row">
-          <label class="stacked">Range
-            <select id="analytics-range">
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
+    <section class="grid">
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <p class="eyebrow">Library</p>
+            <h3>Manage habits</h3>
+          </div>
+        </header>
+        <form id="habit-form" class="stack">
+          <input id="habit-input" type="text" placeholder="Name (Stretch, Write, Meditate)" required />
+          <label class="stacked">Cadence
+            <select id="habit-cadence">
+              <option value="daily">Every day</option>
+              <option value="weekdays">Weekdays</option>
+              <option value="custom">Specific days</option>
             </select>
           </label>
-          <button id="export-csv" type="button">Export CSV</button>
-        </div>
-      </div>
-
-      <section class="panel">
-        <div class="panel-head">
-          <div>
-            <p class="eyebrow">Completion map</p>
-            <h2>This year</h2>
+          <div class="days" id="day-picker">
+            <label><input type="checkbox" value="0" />Sun</label>
+            <label><input type="checkbox" value="1" />Mon</label>
+            <label><input type="checkbox" value="2" />Tue</label>
+            <label><input type="checkbox" value="3" />Wed</label>
+            <label><input type="checkbox" value="4" />Thu</label>
+            <label><input type="checkbox" value="5" />Fri</label>
+            <label><input type="checkbox" value="6" />Sat</label>
           </div>
-        </div>
-        <div id="history-matrix" class="history"></div>
-      </section>
+          <button type="submit">Add habit</button>
+        </form>
+        <div id="library" class="list"></div>
+      </article>
 
-      <section class="panel">
-        <div class="panel-head">
+      <article class="card">
+        <header class="card-head">
           <div>
-            <p class="eyebrow">Analytics</p>
-            <h2>Trends</h2>
+            <p class="eyebrow">Journal</p>
+            <h3>Daily reflection</h3>
           </div>
+        </header>
+        <form id="journal-form" class="stack">
+          <input id="journal-title" type="text" placeholder="Title" />
+          <textarea id="journal-text" rows="3" placeholder="What worked, what didn&rsquo;t?" required></textarea>
+          <button type="submit">Save entry</button>
+        </form>
+        <div id="journal-list" class="list"></div>
+      </article>
+    </section>
+
+    <section class="card">
+      <header class="card-head">
+        <div>
+          <p class="eyebrow">History</p>
+          <h3>Recent days</h3>
         </div>
-        <div class="grid stats" id="analytics-summary"></div>
-        <canvas id="bar-chart" width="900" height="240" aria-label="Completion chart"></canvas>
-      </section>
+      </header>
+      <div id="history" class="history"></div>
     </section>
   </main>
+
+  <footer class="muted center">
+    <p>Everything runs client-side. No trackers, no accounts, just your habits.</p>
+  </footer>
 
   <script src="app.js"></script>
 </body>
