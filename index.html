@@ -81,7 +81,7 @@
       </div>
     </section>
 
-    <section class="grid">
+    <section class="grid wide">
       <article class="card">
         <header class="card-head">
           <div>
@@ -97,61 +97,23 @@
       <article class="card">
         <header class="card-head">
           <div>
-            <p class="eyebrow">Night log</p>
-            <h3>Dream journal</h3>
-          </div>
-        </header>
-        <form id="dream-form" class="stack">
-          <input id="dream-title" type="text" placeholder="Dream headline" />
-          <textarea id="dream-text" rows="3" placeholder="Did you dream? Capture a line or two." required></textarea>
-          <button type="submit">Save dream</button>
-        </form>
-        <div id="dream-list" class="list"></div>
-      </article>
-
-      <article class="card">
-        <header class="card-head">
-          <div>
-            <p class="eyebrow">Quick tasks</p>
-            <h3>One-off wins</h3>
+            <p class="eyebrow">Quick wins</p>
+            <h3>One-off victories</h3>
           </div>
         </header>
         <form id="task-form" class="stack">
-          <input id="task-input" type="text" placeholder="Add a quick task" required />
-          <button type="submit">Add task</button>
+          <input id="task-input" type="text" placeholder="Log a one-off win" required />
+          <button type="submit">Log win</button>
         </form>
         <div id="task-list" class="list"></div>
         <div class="row end">
           <p class="muted" id="task-count"></p>
-          <button id="clear-done" type="button" class="ghost">Clear completed</button>
+          <button id="clear-done" type="button" class="ghost">Clear wins</button>
         </div>
       </article>
     </section>
 
-    <section class="grid">
-      <article class="card">
-        <header class="card-head">
-          <div>
-            <p class="eyebrow">Library</p>
-            <h3>Manage goals &amp; habits</h3>
-          </div>
-          <a href="goals.html" class="ghost">Open goals &amp; library</a>
-        </header>
-        <div class="stack">
-          <p class="muted">Edit your ritual library, annual goals, and quitting list from the dedicated goals page.</p>
-          <div class="row end">
-            <div class="pill">
-              <strong id="habit-total">0</strong>
-              <span class="muted">active habits</span>
-            </div>
-            <div class="pill">
-              <strong id="goal-total">0</strong>
-              <span class="muted">annual goals</span>
-            </div>
-          </div>
-        </div>
-      </article>
-
+    <section class="grid journal-grid">
       <article class="card">
         <header class="card-head">
           <div>
@@ -165,6 +127,21 @@
           <button type="submit">Save entry</button>
         </form>
         <div id="journal-list" class="list"></div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <p class="eyebrow">Night log</p>
+            <h3>Dream journal</h3>
+          </div>
+        </header>
+        <form id="dream-form" class="stack">
+          <input id="dream-title" type="text" placeholder="Dream headline" />
+          <textarea id="dream-text" rows="3" placeholder="Did you dream? Capture a line or two." required></textarea>
+          <button type="submit">Save dream</button>
+        </form>
+        <div id="dream-list" class="list"></div>
       </article>
     </section>
 
@@ -184,12 +161,12 @@
       <header class="card-head">
         <div>
           <p class="eyebrow">History</p>
-          <h3>Month view</h3>
+          <h3>Year view</h3>
         </div>
         <div class="row">
-          <button id="prev-month" type="button" class="ghost">Prev</button>
-          <strong id="month-label"></strong>
-          <button id="next-month" type="button" class="ghost">Next</button>
+          <label class="stacked" for="year-picker">Year
+            <select id="year-picker"></select>
+          </label>
         </div>
       </header>
       <div id="history" class="history-grid"></div>

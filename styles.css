@@ -127,6 +127,8 @@ a { color: var(--accent); }
 }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.grid.wide { grid-template-columns: 1.4fr 1fr; }
+.journal-grid { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
 
 .list { display: flex; flex-direction: column; gap: 10px; }
 .row { display: flex; align-items: center; gap: 10px; }
@@ -146,6 +148,7 @@ a { color: var(--accent); }
 }
 
 .task small, .habit-item small { color: var(--muted); }
+.task-text { display: grid; gap: 4px; }
 
 button, input, select, textarea {
   font-family: inherit;
@@ -222,13 +225,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); }
 
 .history-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 8px;
 }
 .day-tile {
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 12px;
+  padding: 12px 10px;
   background: var(--panel-soft);
   color: var(--text);
   text-align: left;
@@ -237,7 +240,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); }
   cursor: pointer;
   box-shadow: var(--shadow);
 }
-.day-tile strong { font-size: 22px; }
+.day-tile strong { font-size: 16px; letter-spacing: 0.01em; }
 .tiny-progress { height: 8px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
 .tiny-progress span { display: block; height: 100%; width: 0; border-radius: inherit; }
 .tiny-progress.subtle { background: rgba(255,255,255,0.04); }
@@ -297,4 +300,5 @@ dialog {
   body { padding-top: 24px; }
   .hero { grid-template-columns: 1fr; }
   .top { flex-direction: column; align-items: flex-start; }
+  .grid.wide, .journal-grid { grid-template-columns: 1fr; }
 }
