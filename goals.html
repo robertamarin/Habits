@@ -10,110 +10,155 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body data-page="goals">
-  <header class="top">
-    <div class="brand">
-      <div class="dot"></div>
-      <div>
-        <p class="eyebrow">Robert's 2026</p>
-        <h1 id="app-title">Habit Engine</h1>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="sidebar-logo">
+        <div class="dot mini"></div>
       </div>
-    </div>
-    <div class="actions">
-      <button id="settings-button" type="button" class="ghost">Settings</button>
-      <a href="index.html" class="ghost">Back to engine</a>
-    </div>
-  </header>
+      <nav class="sidebar-nav">
+        <a href="index.html#dashboard" class="nav-pill" aria-label="Dashboard">
+          <span class="icon">🏠</span>
+          <span class="nav-label">Dashboard</span>
+        </a>
+        <a href="index.html#habits" class="nav-pill" aria-label="Habits">
+          <span class="icon">🗒️</span>
+          <span class="nav-label">Habits</span>
+        </a>
+        <a href="index.html#stats" class="nav-pill" aria-label="Stats">
+          <span class="icon">📊</span>
+          <span class="nav-label">Stats</span>
+        </a>
+        <a href="index.html#journal" class="nav-pill" aria-label="Journal">
+          <span class="icon">📔</span>
+          <span class="nav-label">Journal</span>
+        </a>
+        <a href="goals.html" class="nav-pill active" aria-label="Goals">
+          <span class="icon">🎯</span>
+          <span class="nav-label">Goals</span>
+        </a>
+        <button id="settings-button" type="button" class="nav-pill ghost" aria-label="Settings">
+          <span class="icon">⚙️</span>
+          <span class="nav-label">Settings</span>
+        </button>
+      </nav>
+    </aside>
 
-  <main>
-    <section class="grid">
-      <article class="card">
-        <header class="card-head">
+    <div class="content-area">
+      <header class="top topbar">
+        <div class="brand compact">
+          <div class="dot mini"></div>
           <div>
-            <p class="eyebrow">Objectives</p>
-            <h3>Annual goals</h3>
+            <p class="eyebrow">Robert's 2026</p>
+            <h1 id="app-title">Habit Engine</h1>
           </div>
-        </header>
-        <form id="goal-form" class="stack">
-          <input id="goal-input" type="text" placeholder="Ship 12 longform essays" required />
-          <button type="submit">Save goal</button>
-        </form>
-        <div id="goal-list" class="goal-list"></div>
-      </article>
-
-      <article class="card">
-        <header class="card-head">
-          <div>
-            <p class="eyebrow">Quit list</p>
-            <h3>Habits I am done with</h3>
-          </div>
-        </header>
-        <form id="quit-form" class="grid">
-          <label class="stacked">Habit name
-            <input id="quit-name" type="text" placeholder="No sugar drinks" required />
-          </label>
-          <label class="stacked">Quit date
-            <input id="quit-date" type="date" required />
-          </label>
-          <button type="submit">Record</button>
-        </form>
-        <div id="quit-library" class="goal-list"></div>
-      </article>
-    </section>
-
-    <section class="card">
-      <header class="card-head">
-        <div>
-          <p class="eyebrow">Habits</p>
-          <h3>Library &amp; cadence</h3>
         </div>
-        <p class="muted">These habits drive the checklist on the main page.</p>
+        <div class="top-actions">
+          <a href="index.html" class="ghost pill">Back to engine</a>
+          <button id="settings-button-top" type="button" class="ghost pill">Settings</button>
+        </div>
       </header>
-      <form id="habit-form" class="stack">
-        <input id="habit-input" type="text" placeholder="Name (Stretch, Write, Meditate)" required />
-        <div class="grid">
-          <label class="stacked">Icon
-            <select id="habit-icon">
-              <option value="">None</option>
-              <option value="🔥">🔥 Fire</option>
-              <option value="✅">✅ Check</option>
-              <option value="🌿">🌿 Calm</option>
-              <option value="📚">📚 Study</option>
-              <option value="💪">💪 Strength</option>
-              <option value="🧘">🧘 Flow</option>
-              <option value="🌅">🌅 Dawn</option>
-              <option value="🎯">🎯 Focus</option>
-              <option value="🏃">🏃 Move</option>
-              <option value="☕">☕ Mindful sip</option>
-            </select>
-          </label>
-          <label class="stacked">Accent
-            <input id="habit-color" type="color" value="#4a7ed5" />
-          </label>
-        </div>
-        <label class="stacked">Cadence
-          <select id="habit-cadence">
-            <option value="daily">Every day</option>
-            <option value="weekdays">Weekdays</option>
-            <option value="custom">Specific days</option>
-          </select>
-        </label>
-        <div class="days" id="day-picker">
-          <label><input type="checkbox" value="0" />Sun</label>
-          <label><input type="checkbox" value="1" />Mon</label>
-          <label><input type="checkbox" value="2" />Tue</label>
-          <label><input type="checkbox" value="3" />Wed</label>
-          <label><input type="checkbox" value="4" />Thu</label>
-          <label><input type="checkbox" value="5" />Fri</label>
-          <label><input type="checkbox" value="6" />Sat</label>
-        </div>
-        <div class="row end">
-          <span class="muted" id="habit-edit-hint">Add to today's checklist</span>
-          <button type="submit" id="habit-submit">Add habit</button>
-        </div>
-      </form>
-      <div id="library" class="list"></div>
-    </section>
-  </main>
+
+      <main class="dashboard-grid goals-grid">
+        <section class="card span-6">
+          <header class="card-head">
+            <div>
+              <p class="eyebrow">Objectives</p>
+              <h3>Annual goals</h3>
+            </div>
+          </header>
+          <form id="goal-form" class="stack">
+            <input id="goal-input" type="text" placeholder="Ship 12 longform essays" required />
+            <button type="submit">Save goal</button>
+          </form>
+          <div id="goal-list" class="goal-list scroll-area"></div>
+        </section>
+
+        <section class="card span-6">
+          <header class="card-head">
+            <div>
+              <p class="eyebrow">Quit list</p>
+              <h3>Habits I am done with</h3>
+            </div>
+          </header>
+          <form id="quit-form" class="grid two-col">
+            <label class="stacked">Habit name
+              <input id="quit-name" type="text" placeholder="No sugar drinks" required />
+            </label>
+            <label class="stacked">Quit date
+              <input id="quit-date" type="date" required />
+            </label>
+            <button type="submit">Record</button>
+          </form>
+          <div id="quit-library" class="goal-list scroll-area"></div>
+        </section>
+
+        <section class="card span-12">
+          <header class="card-head">
+            <div>
+              <p class="eyebrow">Habits</p>
+              <h3>Library &amp; cadence</h3>
+            </div>
+            <p class="muted">These habits drive the checklist on the main page.</p>
+          </header>
+          <form id="habit-form" class="stack">
+            <input id="habit-input" type="text" placeholder="Name (Stretch, Write, Meditate)" required />
+            <div class="grid two-col">
+              <label class="stacked">Icon
+                <select id="habit-icon">
+                  <option value="">None</option>
+                  <option value="🔥">🔥 Fire</option>
+                  <option value="✅">✅ Check</option>
+                  <option value="🌿">🌿 Calm</option>
+                  <option value="📚">📚 Study</option>
+                  <option value="💪">💪 Strength</option>
+                  <option value="🧘">🧘 Flow</option>
+                  <option value="🌅">🌅 Dawn</option>
+                  <option value="🎯">🎯 Focus</option>
+                  <option value="🏃">🏃 Move</option>
+                  <option value="☕">☕ Mindful sip</option>
+                </select>
+              </label>
+              <label class="stacked">Accent
+                <input id="habit-color" type="color" value="#4a7ed5" />
+              </label>
+            </div>
+            <label class="stacked">Cadence
+              <select id="habit-cadence">
+                <option value="daily">Every day</option>
+                <option value="weekdays">Weekdays</option>
+                <option value="custom">Specific days</option>
+              </select>
+            </label>
+            <div class="days" id="day-picker">
+              <label><input type="checkbox" value="0" />Sun</label>
+              <label><input type="checkbox" value="1" />Mon</label>
+              <label><input type="checkbox" value="2" />Tue</label>
+              <label><input type="checkbox" value="3" />Wed</label>
+              <label><input type="checkbox" value="4" />Thu</label>
+              <label><input type="checkbox" value="5" />Fri</label>
+              <label><input type="checkbox" value="6" />Sat</label>
+            </div>
+            <div class="row end">
+              <span class="muted" id="habit-edit-hint">Add to today's checklist</span>
+              <button type="submit" id="habit-submit">Add habit</button>
+            </div>
+          </form>
+          <div id="library" class="list"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <nav class="bottom-nav" aria-label="Mobile navigation">
+    <a href="index.html#dashboard" class="nav-pill" aria-label="Dashboard"><span>🏠</span><small>Dashboard</small></a>
+    <a href="index.html#habits" class="nav-pill" aria-label="Habits"><span>🗒️</span><small>Habits</small></a>
+    <a href="index.html#stats" class="nav-pill" aria-label="Stats"><span>📊</span><small>Stats</small></a>
+    <a href="goals.html" class="nav-pill active" aria-label="Goals"><span>🎯</span><small>Goals</small></a>
+    <button type="button" class="nav-pill icon-button" id="mobile-menu" aria-label="More">
+      <span>⋯</span>
+      <small>More</small>
+    </button>
+  </nav>
 
   <footer class="muted center">
     <p>Everything runs client-side. No trackers, no accounts, just your habits.</p>
@@ -170,6 +215,17 @@
         <button id="reset-data" type="button" class="ghost danger">Reset data</button>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="day-detail">
+    <div class="modal-head">
+      <div>
+        <p class="eyebrow">Daily details</p>
+        <h3 id="detail-date"></h3>
+      </div>
+      <button id="close-detail" type="button" class="ghost">Close</button>
+    </div>
+    <div class="day-breakdown"></div>
   </dialog>
 
   <script src="app.js"></script>

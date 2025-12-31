@@ -57,6 +57,7 @@
     summaryLongest: document.getElementById('summary-longest'),
     summaryRate: document.getElementById('summary-rate'),
     summaryWins: document.getElementById('summary-wins'),
+    summaryGoals: document.getElementById('summary-goals'),
     habitList: document.getElementById('habit-list'),
     emptyHabits: document.getElementById('empty-habits'),
     completeCount: document.getElementById('complete-count'),
@@ -114,6 +115,10 @@
     historyToggle: document.getElementById('history-toggle'),
     winsPill: document.getElementById('wins-pill'),
     focusMode: document.getElementById('focus-mode'),
+    toolbar: document.querySelector('.toolbar'),
+    toolbarToggle: document.getElementById('toolbar-toggle'),
+    mobileMenu: document.getElementById('mobile-menu'),
+    momentumBar: document.querySelector('.meter-bar span'),
     exportData: document.getElementById('export-data'),
     exportCsv: document.getElementById('export-csv'),
     importData: document.getElementById('import-data'),
@@ -127,7 +132,11 @@
     quitForm: document.getElementById('quit-form'),
     quitName: document.getElementById('quit-name'),
     quitDate: document.getElementById('quit-date'),
-    quitLibrary: document.getElementById('quit-library')
+    quitLibrary: document.getElementById('quit-library'),
+    quitCard: document.querySelector('.quit-card'),
+    quitCta: document.getElementById('quit-cta'),
+    journalCard: document.querySelector('.journal-card'),
+    notesCta: document.getElementById('notes-cta')
   };
 
   const isHome = PAGE === 'home';
@@ -530,8 +539,12 @@
     dom.journalList.innerHTML = '';
     if (!day.journal.length) {
       dom.journalList.innerHTML = '<div class="empty">No entries yet</div>';
+      if (dom.notesCta) dom.notesCta.classList.remove('hidden');
+      if (dom.journalCard) dom.journalCard.classList.add('collapsed');
       return;
     }
+    if (dom.notesCta) dom.notesCta.classList.add('hidden');
+    if (dom.journalCard) dom.journalCard.classList.remove('collapsed');
 
     day.journal
       .slice()
@@ -764,6 +777,7 @@
       const minutes = tasksDone * 15;
       dom.focusTime.textContent = `${(minutes / 60).toFixed(1)}h`;
     }
+    if (dom.momentumBar) dom.momentumBar.style.width = `${avg}%`;
 
     if (dom.weekTrend) {
       dom.weekTrend.innerHTML = '';
@@ -792,25 +806,43 @@
       return d.toISOString().slice(0, 10);
     });
     dom.weeklyBars.innerHTML = '';
-    dates.forEach((date) => {
-      const percent = dayCompletion(date);
-      const bar = document.createElement('div');
-      bar.className = 'day-cell';
-      const dayLabel = document.createElement('div');
-      dayLabel.className = 'day-label';
-      dayLabel.textContent = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(new Date(date));
+    const percents = dates.map((date) => dayCompletion(date));
+    const hasData = percents.some((p) => p > 0);
+    percents.forEach((percent, index) => {
+      const date = dates[index];
+      const row = document.createElement('div');
+      row.className = 'week-row';
+      const label = document.createElement('div');
+      label.className = 'week-label';
+      label.textContent = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(new Date(date));
       const track = document.createElement('div');
-      track.className = 'day-track';
-      const fill = document.createElement('div');
-      fill.className = 'day-fill';
-      fill.style.height = `${percent}%`;
+      track.className = 'week-track';
+      const fill = document.createElement('span');
+      fill.className = 'week-fill';
+      fill.style.width = `${percent}%`;
       fill.title = `${formatDate(date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${percent}% complete`;
       track.append(fill);
-      bar.title = `${formatDate(date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${percent}% complete`;
-      bar.append(dayLabel, track);
-      if (date === today()) bar.classList.add('today');
-      dom.weeklyBars.append(bar);
+      const value = document.createElement('div');
+      value.className = 'week-value';
+      value.textContent = `${percent}%`;
+      row.append(label, track, value);
+      dom.weeklyBars.append(row);
     });
+
+    const sparkline = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    sparkline.setAttribute('viewBox', '0 0 140 40');
+    sparkline.classList.add('sparkline');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const mapped = percents.map((v, i) => {
+      const x = (i / (percents.length - 1)) * 140;
+      const y = 36 - (v / 100) * 32;
+      return `${x},${y}`;
+    });
+    path.setAttribute('d', `M${mapped.join(' L')}`);
+    sparkline.append(path);
+    if (hasData) dom.weeklyBars.classList.add('has-data');
+    else dom.weeklyBars.classList.remove('has-data');
+    dom.weeklyBars.append(sparkline);
   };
 
   const renderMonthly = () => {
@@ -1053,9 +1085,13 @@
     dom.quitList.innerHTML = '';
     if (!state.quits.length) {
       dom.emptyQuit.classList.remove('hidden');
+      if (dom.quitCard) dom.quitCard.classList.add('collapsed');
+      if (dom.quitCta) dom.quitCta.classList.remove('hidden');
       return;
     }
     dom.emptyQuit.classList.add('hidden');
+    if (dom.quitCard) dom.quitCard.classList.remove('collapsed');
+    if (dom.quitCta) dom.quitCta.classList.add('hidden');
     state.quits.forEach((quit) => {
       const row = document.createElement('div');
       row.className = 'quit-row';
@@ -1112,6 +1148,7 @@
     const day = getDay(today());
     const winsCount = wins ?? day.tasks.length;
     if (dom.summaryWins) dom.summaryWins.textContent = String(winsCount);
+    if (dom.summaryGoals) dom.summaryGoals.textContent = String(state.goals.length);
   };
 
   const updateQuitTimers = () => {
@@ -1267,6 +1304,13 @@
     });
   }
 
+  const toggleToolbar = () => {
+    if (!dom.toolbar) return;
+    dom.toolbar.classList.toggle('is-open');
+  };
+  if (dom.toolbarToggle) dom.toolbarToggle.addEventListener('click', toggleToolbar);
+  if (dom.mobileMenu) dom.mobileMenu.addEventListener('click', toggleToolbar);
+
   if (dom.exportData) {
     dom.exportData.addEventListener('click', () => {
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -1359,6 +1403,42 @@
 
   // Events: Home page
   if (isHome) {
+    const navLinks = document.querySelectorAll('.bottom-nav .nav-pill');
+    const sections = ['dashboard', 'habits', 'stats', 'journal'];
+    const setActive = (id) => {
+      navLinks.forEach((link) => link.classList.toggle('active', link.getAttribute('href')?.includes(id)));
+    };
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) setActive(`#${entry.target.id}`);
+      });
+    }, { threshold: 0.4 });
+    sections.forEach((id) => {
+      const node = document.getElementById(id);
+      if (node) observer.observe(node);
+    });
+    navLinks.forEach((link) => {
+      link.addEventListener('click', () => {
+        const hash = link.getAttribute('href') || '';
+        if (hash.startsWith('#')) setActive(hash);
+      });
+    });
+
+    if (dom.quitCta && dom.quitCard) {
+      dom.quitCta.addEventListener('click', () => {
+        dom.quitCard.classList.remove('collapsed');
+        dom.quitCta.classList.add('hidden');
+      });
+    }
+
+    if (dom.notesCta && dom.journalCard) {
+      dom.notesCta.addEventListener('click', () => {
+        dom.journalCard.classList.remove('collapsed');
+        dom.notesCta.classList.add('hidden');
+        if (dom.journalTitle) dom.journalTitle.focus();
+      });
+    }
+
     if (dom.markAll) {
       dom.markAll.addEventListener('click', () => {
         const day = getDay(today());
