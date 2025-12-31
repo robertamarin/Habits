@@ -218,7 +218,8 @@
     quitDate: document.getElementById('quit-date'),
     journalCard: document.querySelector('.journal-card'),
     notesCta: document.getElementById('notes-cta'),
-    habitDate: document.getElementById('habit-date')
+    habitDate: document.getElementById('habit-date'),
+    moodQuick: document.getElementById('mood-quick')
   };
 
   const moodFaces = { 1: '😞', 2: '😐', 3: '🙂', 4: '😃', 5: '🤩' };
@@ -353,6 +354,15 @@
     if (dom.moodStatus) {
       dom.moodStatus.textContent = saved ? `${moodFaces[saved] || '🙂'} ${moodLabels[saved]}` : 'Not saved';
       dom.moodStatus.classList.toggle('badge', Boolean(saved));
+    }
+    if (dom.moodQuick) {
+      const currentValue = Number(dom.moodSelect.value || '3');
+      dom.moodQuick.querySelectorAll('[data-mood-value]').forEach((button) => {
+        const value = Number(button.dataset.moodValue);
+        const active = currentValue === value;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
     }
   };
 
@@ -1578,7 +1588,8 @@
       const days = Array.from(dom.dayPicker.querySelectorAll('input:checked')).map((d) => Number(d.value));
       const icon = dom.habitIcon ? dom.habitIcon.value : '';
       const color = dom.habitColor ? dom.habitColor.value : '#5563ff';
-      if (editingHabitId) {
+      const createdNew = !editingHabitId;
+      if (!createdNew) {
         const existing = state.habits.find((h) => h.id === editingHabitId);
         if (existing) {
           existing.name = name;
@@ -1598,11 +1609,18 @@
       editingHabitId = null;
       if (dom.habitSubmit) dom.habitSubmit.textContent = 'Add habit';
       if (dom.habitEditHint) dom.habitEditHint.textContent = 'Add to today\'s checklist';
+      if (createdNew) {
+        const todayKey = today();
+        state.selectedDate = todayKey;
+        getDay(todayKey);
+        if (dom.habitDate) dom.habitDate.value = todayKey;
+      }
       saveState();
       renderLibrary();
       renderChecklist();
       renderHistory();
       renderProgress();
+      renderMoodPicker();
     });
   }
 
@@ -1638,6 +1656,15 @@
 
   if (dom.saveMood && dom.moodSelect) {
     dom.saveMood.addEventListener('click', saveMoodForDay);
+  }
+  if (dom.moodQuick) {
+    dom.moodQuick.querySelectorAll('[data-mood-value]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const value = Number(button.dataset.moodValue);
+        if (dom.moodSelect) dom.moodSelect.value = String(value);
+        saveMoodForDay();
+      });
+    });
   }
 
   const openSettings = () => {
