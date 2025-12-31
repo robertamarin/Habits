@@ -48,6 +48,12 @@
           <p class="eyebrow">Daily completion</p>
           <div class="ring-wrap">
             <svg id="progress-ring" viewBox="0 0 160 160">
+              <defs>
+                <linearGradient id="ringGradient" x1="0%" x2="100%" y1="0%" y2="0%">
+                  <stop offset="0%" stop-color="var(--accent-strong)" />
+                  <stop offset="100%" stop-color="var(--accent-soft)" />
+                </linearGradient>
+              </defs>
               <circle class="ring-bg" cx="80" cy="80" r="70" />
               <circle class="ring-fill" cx="80" cy="80" r="70" />
             </svg>
@@ -109,14 +115,18 @@
           </div>
           <span class="pill stat-pill" id="wins-pill">Wins today: 0</span>
         </header>
-        <form id="task-form" class="stack">
-          <input id="task-input" type="text" placeholder="Log a one-off win" required />
-          <button type="submit">Log win</button>
+        <form id="task-form" class="stack quick-form">
+          <label class="stacked">Log a one-off win
+            <input id="task-input" type="text" placeholder="Capture a quick win" required />
+          </label>
+          <div class="row end">
+            <button type="submit">Log win</button>
+            <button id="clear-done" type="button" class="ghost">Clear wins</button>
+          </div>
         </form>
-        <div id="task-list" class="list"></div>
-        <div class="row end">
+        <div id="task-list" class="list quick-win-list"></div>
+        <div class="row between quick-footer">
           <p class="muted" id="task-count"></p>
-          <button id="clear-done" type="button" class="ghost">Clear wins</button>
         </div>
       </article>
     </section>
@@ -134,11 +144,18 @@
     <section class="card monthly-card" data-focus-hidden data-section="monthly">
       <header class="card-head">
         <div>
-          <p class="eyebrow">Monthly strip</p>
+          <p class="eyebrow">Monthly heatmap</p>
           <h3>30-day intensity</h3>
         </div>
       </header>
-      <div id="monthly-strip" class="month-strip"></div>
+      <div class="heatmap-wrap">
+        <div id="monthly-strip" class="month-strip"></div>
+        <div class="legend" aria-label="Heatmap legend">
+          <span>Low</span>
+          <span class="legend-bar"><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i></span>
+          <span>High</span>
+        </div>
+      </div>
     </section>
 
     <section class="card history-card" data-focus-hidden data-section="history">
@@ -177,7 +194,7 @@
       <div class="tab-body" data-tab-panel="reflection">
         <form id="journal-form" class="stack">
           <input id="journal-title" type="text" placeholder="Title" />
-          <textarea id="journal-text" rows="3" placeholder="What worked, what didn&rsquo;t?" required></textarea>
+          <textarea id="journal-text" rows="5" placeholder="What worked, what didn&rsquo;t?" required></textarea>
           <div class="row end">
             <span class="muted" id="journal-saved">Unsaved</span>
             <button type="submit">Save entry</button>
@@ -188,7 +205,7 @@
       <div class="tab-body hidden" data-tab-panel="dreams">
         <form id="dream-form" class="stack">
           <input id="dream-title" type="text" placeholder="Dream headline" />
-          <textarea id="dream-text" rows="3" placeholder="Did you dream? Capture a line or two." required></textarea>
+          <textarea id="dream-text" rows="5" placeholder="Did you dream? Capture a line or two." required></textarea>
           <div class="row end">
             <span class="muted" id="dream-saved">Unsaved</span>
             <button type="submit">Save dream</button>
@@ -233,9 +250,9 @@
       </label>
       <label class="stacked">Accent mood
         <select id="accent-picker">
-          <option value="violet">Violet / Teal</option>
-          <option value="sunrise">Sunrise</option>
-          <option value="midnight">Midnight neon</option>
+          <option value="violet">Violet</option>
+          <option value="mint">Mint</option>
+          <option value="amber">Amber</option>
         </select>
       </label>
       <div class="stack">

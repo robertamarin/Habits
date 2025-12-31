@@ -181,19 +181,14 @@
     dom.dayPicker.style.display = custom ? 'flex' : 'none';
   };
 
-  const progressColor = (percent) => {
-    const hue = Math.round((percent / 100) * 120);
-    return `hsl(${hue}, 80%, 50%)`;
-  };
-
-  const completionColor = (percent, hasHabits, hasData = true) => {
-    if (!hasData) return '#1f2937';
-    if (hasHabits && percent === 0) return '#ef4444';
-    if (!hasHabits) return '#1f2937';
-    if (percent <= 25) return '#312e81';
-    if (percent <= 50) return '#2563eb';
-    if (percent <= 75) return '#0ea5e9';
-    return 'var(--accent-strong)';
+  const completionLevel = (percent, hasHabits, hasData = true) => {
+    if (!hasData) return 0;
+    if (!hasHabits) return 1;
+    if (percent === 0) return 1;
+    if (percent <= 35) return 1;
+    if (percent <= 65) return 2;
+    if (percent < 100) return 3;
+    return 4;
   };
 
   const renderTitle = () => {
@@ -213,8 +208,11 @@
   };
 
   const applyAccent = () => {
-    document.documentElement.setAttribute('data-accent', state.accent || 'violet');
-    if (dom.accentPicker) dom.accentPicker.value = state.accent;
+    const palette = ['violet', 'mint', 'amber'];
+    const accent = palette.includes(state.accent) ? state.accent : 'violet';
+    state.accent = accent;
+    document.documentElement.setAttribute('data-accent', accent);
+    if (dom.accentPicker) dom.accentPicker.value = accent;
   };
 
   const applyHiddenSections = () => {
@@ -402,7 +400,9 @@
       const time = document.createElement('span');
       time.className = 'meta';
       const createdDate = task.created ? new Date(task.created) : new Date(today());
-      time.textContent = formatDate(createdDate.toISOString().slice(0, 10), { month: 'short', day: 'numeric' });
+      const dateText = formatDate(createdDate.toISOString().slice(0, 10), { month: 'short', day: 'numeric' });
+      const timeText = createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      time.textContent = `${dateText} · ${timeText}`;
 
       left.append(title, time);
       const remove = document.createElement('button');
@@ -667,10 +667,11 @@
     dom.completeCount.textContent = done;
     if (dom.progressValue) dom.progressValue.textContent = `${percent}%`;
     if (dom.ringSubtext) dom.ringSubtext.textContent = `${done} / ${todayHabits.length}`;
+    if (dom.progressRing) dom.progressRing.setAttribute('title', `${percent}% complete (${done}/${todayHabits.length})`);
     const circumference = 440;
     const offset = circumference - (percent / 100) * circumference;
     dom.progressFill.style.strokeDashoffset = offset;
-    dom.progressFill.style.stroke = `var(--accent-strong)`;
+    dom.progressFill.setAttribute('stroke', 'url(#ringGradient)');
     if (fromAction && percent !== lastProgressPercent) {
       dom.progressFill.classList.add('wins-pulse');
       setTimeout(() => dom.progressFill && dom.progressFill.classList.remove('wins-pulse'), 300);
@@ -692,6 +693,7 @@
     if (dom.streak) dom.streak.textContent = `${streakCount}`;
     const value = dom.streakBar.querySelector('.streak-value');
     if (value) value.textContent = `${streakCount}d`;
+    dom.streakBar.setAttribute('title', `Current streak: ${streakCount} day${streakCount === 1 ? '' : 's'}`);
     const milestones = [7, 14, 30, 60];
     const reached = milestones.filter((m) => streakCount >= m).pop();
     if (dom.milestoneLabel) {
@@ -743,13 +745,21 @@
     dates.forEach((date) => {
       const percent = dayCompletion(date);
       const bar = document.createElement('div');
-      bar.className = 'bar';
-      const dayLabel = document.createElement('label');
+      bar.className = 'day-cell';
+      const dayLabel = document.createElement('div');
+      dayLabel.className = 'day-label';
       dayLabel.textContent = new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(new Date(date));
-      const fill = document.createElement('span');
+      const track = document.createElement('div');
+      track.className = 'day-track';
+      const fill = document.createElement('div');
+      fill.className = 'day-fill';
       fill.style.height = `${percent}%`;
-       bar.title = `${formatDate(date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${percent}% complete`;
-      bar.append(dayLabel, fill);
+      track.append(fill);
+      const value = document.createElement('div');
+      value.className = 'day-value';
+      value.textContent = `${percent}%`;
+      bar.title = `${formatDate(date, { weekday: 'long', month: 'short', day: 'numeric' })}: ${percent}% complete`;
+      bar.append(dayLabel, track, value);
       if (date === today()) bar.classList.add('today');
       dom.weeklyBars.append(bar);
     });
@@ -774,17 +784,11 @@
       const done = todaysHabits.filter((h) => day?.habits?.[h.id]).length;
       const wins = (day?.tasks || []).length;
       const hasData = hasActivity(day);
+      const level = completionLevel(percent, hasHabits, hasData);
       const button = document.createElement('button');
-      const color = completionColor(percent, hasHabits, hasData);
-      if (color.startsWith('#') && color.length === 7) {
-        const intensity = Math.max(0.15, Math.min(percent / 100, 1));
-        const r = parseInt(color.slice(1, 3), 16);
-        const g = parseInt(color.slice(3, 5), 16);
-        const b = parseInt(color.slice(5, 7), 16);
-        button.style.background = `rgba(${r}, ${g}, ${b}, ${intensity})`;
-      } else {
-        button.style.background = color;
-      }
+      button.dataset.level = String(level);
+      button.textContent = new Date(date).getDate();
+      if (date === today()) button.classList.add('today');
       button.title = `${formatDate(date, { month: 'short', day: 'numeric' })}: ${done}/${todaysHabits.length} habits, ${wins} wins`;
       button.addEventListener('click', () => openDayDetail(date));
       dom.monthlyStrip.append(button);
@@ -837,7 +841,7 @@
         const tile = document.createElement('button');
         tile.type = 'button';
         tile.className = 'day-tile';
-        tile.style.background = completionColor(percent, total > 0, hasData);
+        tile.dataset.level = String(completionLevel(percent, total > 0, hasData));
         const heading = document.createElement('strong');
         heading.textContent = formatDate(date, { month: 'short', day: 'numeric' });
         const stats = document.createElement('div');
@@ -869,7 +873,7 @@
       const tile = document.createElement('button');
       tile.type = 'button';
       tile.className = 'day-tile';
-      tile.style.background = completionColor(percent, total > 0, hasData);
+      tile.dataset.level = String(completionLevel(percent, total > 0, hasData));
 
       const heading = document.createElement('strong');
       heading.textContent = formatDate(date, { month: 'short', day: 'numeric' });
@@ -903,7 +907,7 @@
     habitsProgress.className = 'tiny-progress';
     const habitsFill = document.createElement('span');
     habitsFill.style.width = `${habitsPercent}%`;
-    habitsFill.style.background = progressColor(habitsPercent);
+    habitsFill.style.background = 'linear-gradient(90deg, var(--accent-strong), var(--accent))';
     habitsProgress.append(habitsFill);
     habitsBlock.append(habitsProgress);
     wrap.append(habitsBlock);
@@ -1023,6 +1027,7 @@
       timer.className = 'badge';
       timer.dataset.timer = quit.date;
       timer.textContent = '';
+      timer.title = 'Time since quitting';
 
       const reset = document.createElement('button');
       reset.type = 'button';
@@ -1030,7 +1035,7 @@
       reset.textContent = 'Reset';
       reset.addEventListener('click', () => {
         if (!confirm('Reset this quit timer to today?')) return;
-        quit.date = today();
+        quit.date = new Date().toISOString();
         saveState();
         renderQuitList();
       });
@@ -1056,6 +1061,10 @@
         return;
       }
       const seconds = Math.floor(diff / 1000);
+      if (seconds < 60) {
+        node.textContent = 'Moments ago';
+        return;
+      }
       const days = Math.floor(seconds / 86400);
       const hours = Math.floor((seconds % 86400) / 3600);
       const minutes = Math.floor((seconds % 3600) / 60);
@@ -1427,7 +1436,8 @@
         const name = dom.quitName.value.trim();
         const date = dom.quitDate.value || today();
         if (!name) return;
-        state.quits.push({ id: randomId(), name, date });
+        const storedDate = date ? new Date(date).toISOString() : new Date().toISOString();
+        state.quits.push({ id: randomId(), name, date: storedDate });
         dom.quitName.value = '';
         dom.quitDate.value = today();
         saveState();
