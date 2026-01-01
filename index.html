@@ -10,7 +10,44 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body data-page="home">
-  <div class="app-shell">
+  <section class="card auth-card" id="auth-panel">
+    <div class="brand compact">
+      <div class="dot mini" aria-hidden="true"></div>
+      <div>
+        <p class="eyebrow">Welcome</p>
+        <h1>Sync your habits</h1>
+      </div>
+    </div>
+    <p class="muted">Securely sign in to sync with Firebase Authentication and Firestore.</p>
+    <div class="auth-grid">
+      <form id="signup-form" class="stack auth-form" aria-label="Sign up">
+        <h3>Create account</h3>
+        <label class="stacked">Email
+          <input id="signup-email" type="email" required autocomplete="email" />
+        </label>
+        <label class="stacked">Password
+          <input id="signup-password" type="password" required autocomplete="new-password" />
+        </label>
+        <button type="submit" class="primary full-width">Sign up</button>
+      </form>
+      <form id="signin-form" class="stack auth-form" aria-label="Sign in">
+        <h3>Sign in</h3>
+        <label class="stacked">Email
+          <input id="signin-email" type="email" required autocomplete="email" />
+        </label>
+        <label class="stacked">Password
+          <input id="signin-password" type="password" required autocomplete="current-password" />
+        </label>
+        <button type="submit" class="ghost full-width">Sign in</button>
+      </form>
+    </div>
+    <div class="row wrap auth-actions">
+      <button type="button" id="google-signin" class="ghost pill">Continue with Google</button>
+      <p class="muted" id="auth-message">Use email + password to create your account or sign back in.</p>
+    </div>
+  </section>
+
+  <div class="app-shell hidden" id="app-shell">
     <header class="app-header" id="dashboard">
       <div class="brand compact">
         <div class="dot mini" aria-hidden="true"></div>
@@ -20,6 +57,8 @@
         </div>
       </div>
       <div class="nav-wrap">
+        <span id="user-badge" class="badge subtle hidden" aria-live="polite"></span>
+        <button id="logout-button" type="button" class="ghost pill hidden" aria-label="Logout">Logout</button>
         <button id="settings-button-top" type="button" class="ghost pill" aria-label="Open settings">Settings</button>
       </div>
     </header>
@@ -499,6 +538,6 @@
     <div class="day-breakdown"></div>
   </dialog>
 
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

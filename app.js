@@ -1,39 +1,15 @@
+import { signIn, signInWithGoogle, signUp, logOut, observeAuthState } from './auth.js';
+import {
+  addHabit as addHabitRemote,
+  removeHabit as removeHabitRemote,
+  setMood as setMoodRemote,
+  toggleCompletion as toggleCompletionRemote,
+  updateHabit as updateHabitRemote
+} from './firestore.js';
+import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today } from './utils.js';
+
 (function () {
   const STORAGE_KEY = 'habitFreshV1';
-  const PAGE = document.body.dataset.page || 'home';
-
-  const parseDateValue = (value) => {
-    if (value instanceof Date) return new Date(value);
-    if (typeof value === 'string') {
-      const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (match) {
-        const [, year, month, day] = match;
-        return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0, 0);
-      }
-    }
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-  };
-
-  const dayKey = (value = new Date()) => {
-    const d = parseDateValue(value);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-  const today = () => dayKey(new Date());
-  const startOfDayIso = (value = new Date()) => {
-    const d = parseDateValue(value);
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString();
-  };
-  const startOfMonthKey = (value = new Date()) => {
-    const d = parseDateValue(value);
-    d.setHours(12, 0, 0, 0);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-  };
-  const randomId = () => (crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
   const defaultState = () => ({
     habits: [],
@@ -116,6 +92,26 @@
   };
 
   seedHabitCreationDates();
+
+  const hydrateFromRemote = (payload = {}) => {
+    const todayKeyValue = today();
+    const { habits = [], day = {} } = payload;
+    state.habits = habits.map((h) => ({
+      id: h.id,
+      name: h.name,
+      cadence: h.cadence || 'daily',
+      days: h.days || [],
+      icon: h.icon || '',
+      color: h.color || '#5563ff',
+      created: h.createdAt?.toDate ? dayKey(h.createdAt.toDate()) : dayKey(h.createdAt || h.created || todayKeyValue)
+    }));
+    const completions = day.completions || {};
+    const dayState = getDay(todayKeyValue);
+    dayState.habits = { ...dayState.habits, ...completions };
+    if (day.mood !== undefined && day.mood !== null) state.mood[todayKeyValue] = day.mood;
+    saveState();
+    renderAll();
+  };
 
   const saveState = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   const refreshFromStorage = (payload) => {
@@ -236,7 +232,19 @@
     journalCard: document.querySelector('.journal-card'),
     notesCta: document.getElementById('notes-cta'),
     habitDate: document.getElementById('habit-date'),
-    moodQuick: document.getElementById('mood-quick')
+    moodQuick: document.getElementById('mood-quick'),
+    authPanel: document.getElementById('auth-panel'),
+    appShell: document.getElementById('app-shell'),
+    signupForm: document.getElementById('signup-form'),
+    signupEmail: document.getElementById('signup-email'),
+    signupPassword: document.getElementById('signup-password'),
+    signinForm: document.getElementById('signin-form'),
+    signinEmail: document.getElementById('signin-email'),
+    signinPassword: document.getElementById('signin-password'),
+    googleSignin: document.getElementById('google-signin'),
+    authMessage: document.getElementById('auth-message'),
+    logoutButton: document.getElementById('logout-button'),
+    userBadge: document.getElementById('user-badge')
   };
 
   const moodFaces = { 1: '😞', 2: '😐', 3: '🙂', 4: '😃', 5: '🤩' };
@@ -251,6 +259,23 @@
   let editingHabitId = null;
   let lastProgressPercent = 0;
   let historyExpanded = false;
+  let currentUser = null;
+
+  const showAuthPanel = (message) => {
+    if (dom.appShell) dom.appShell.classList.add('hidden');
+    if (dom.authPanel) dom.authPanel.classList.remove('hidden');
+    if (dom.authMessage && message) dom.authMessage.textContent = message;
+  };
+
+  const showApp = (user) => {
+    if (dom.authPanel) dom.authPanel.classList.add('hidden');
+    if (dom.appShell) dom.appShell.classList.remove('hidden');
+    if (dom.logoutButton) dom.logoutButton.classList.remove('hidden');
+    if (dom.userBadge) {
+      dom.userBadge.textContent = user?.email || 'Signed in';
+      dom.userBadge.classList.remove('hidden');
+    }
+  };
 
   const getDay = (date) => {
     const key = dayKey(date);
@@ -455,13 +480,16 @@
       const input = document.createElement('input');
       input.type = 'checkbox';
       input.checked = Boolean(day.habits[habit.id]);
-      input.addEventListener('change', () => {
+      input.addEventListener('change', async () => {
         day.habits[habit.id] = input.checked;
         saveState();
         renderProgress(true);
         renderHistory();
         miniFill.style.opacity = input.checked ? '1' : '0.5';
         badge.textContent = input.checked ? 'Done' : 'Pending';
+        if (currentUser) {
+          await toggleCompletionRemote(currentUser.uid, habit.id, date, input.checked);
+        }
       });
 
       const labels = document.createElement('div');
@@ -612,7 +640,7 @@
       remove.type = 'button';
       remove.className = 'ghost';
       remove.textContent = 'Remove';
-      remove.addEventListener('click', () => {
+      remove.addEventListener('click', async () => {
         const date = today();
         const day = getDay(date);
         delete day.habits[habit.id];
@@ -630,6 +658,7 @@
         renderLibrary();
         renderProgress();
         renderHistory();
+        if (currentUser) await removeHabitRemote(currentUser.uid, habit.id);
       });
 
       actions.append(edit, remove);
@@ -1603,12 +1632,13 @@
   }
 
   if (dom.habitForm) {
-    dom.habitForm.addEventListener('submit', (event) => {
+    dom.habitForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const name = dom.habitInput.value.trim();
       if (!name) return;
-      const cadence = dom.habitCadence.value;
-      const days = Array.from(dom.dayPicker.querySelectorAll('input:checked')).map((d) => Number(d.value));
+      const cadence = dom.habitCadence ? dom.habitCadence.value : 'daily';
+      const dayInputs = dom.dayPicker ? Array.from(dom.dayPicker.querySelectorAll('input:checked')) : [];
+      const days = dayInputs.map((d) => Number(d.value));
       const icon = dom.habitIcon ? dom.habitIcon.value : '';
       const color = dom.habitColor ? dom.habitColor.value : '#5563ff';
       const createdNew = !editingHabitId;
@@ -1620,13 +1650,25 @@
           existing.days = days;
           existing.icon = icon;
           existing.color = color;
+          if (currentUser) {
+            await updateHabitRemote(currentUser.uid, existing.id, {
+              name,
+              cadence,
+              days,
+              icon,
+              color
+            });
+          }
         }
       } else {
         const habit = { id: randomId(), name, cadence, days, icon, color, created: today() };
         state.habits.push(habit);
+        if (currentUser) {
+          await addHabitRemote(currentUser.uid, name, habit);
+        }
       }
       dom.habitInput.value = '';
-      dom.dayPicker.querySelectorAll('input').forEach((i) => (i.checked = false));
+      if (dom.dayPicker) dom.dayPicker.querySelectorAll('input').forEach((i) => (i.checked = false));
       if (dom.habitIcon) dom.habitIcon.value = '';
       if (dom.habitColor) dom.habitColor.value = '#5563ff';
       editingHabitId = null;
@@ -1667,7 +1709,7 @@
     });
   }
 
-  const saveMoodForDay = () => {
+  const saveMoodForDay = async () => {
     if (!dom.moodSelect) return;
     const value = Number(dom.moodSelect.value);
     const date = selectedDate();
@@ -1675,6 +1717,9 @@
     saveState();
     renderMoodPicker();
     renderHistory();
+    if (currentUser) {
+      await setMoodRemote(currentUser.uid, value, date);
+    }
   };
 
   if (dom.saveMood && dom.moodSelect) {
@@ -1859,7 +1904,7 @@
   }
 
   if (dom.markAll) {
-    dom.markAll.addEventListener('click', () => {
+    dom.markAll.addEventListener('click', async () => {
       const date = selectedDate();
       const day = getDay(date);
       activeHabitsForDate(date).forEach((h) => {
@@ -1868,6 +1913,11 @@
       saveState();
       renderChecklist();
       renderHistory();
+      if (currentUser) {
+        await Promise.all(
+          activeHabitsForDate(date).map((h) => toggleCompletionRemote(currentUser.uid, h.id, date, true))
+        );
+      }
     });
   }
 
@@ -2017,6 +2067,75 @@
   if (dom.dayDetail && document.getElementById('close-detail')) {
     document.getElementById('close-detail').addEventListener('click', () => dom.dayDetail.close());
   }
+
+  const setAuthMessage = (message) => {
+    if (dom.authMessage) dom.authMessage.textContent = message;
+  };
+
+  if (dom.signupForm) {
+    dom.signupForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const email = dom.signupEmail.value.trim();
+      const password = dom.signupPassword.value;
+      if (!email || !password) return;
+      try {
+        await signUp(email, password);
+        setAuthMessage('Account created—signing you in…');
+      } catch (error) {
+        setAuthMessage(error.message || 'Unable to sign up.');
+      }
+    });
+  }
+
+  if (dom.signinForm) {
+    dom.signinForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const email = dom.signinEmail.value.trim();
+      const password = dom.signinPassword.value;
+      if (!email || !password) return;
+      try {
+        await signIn(email, password);
+        setAuthMessage('Signed in—loading your data…');
+      } catch (error) {
+        setAuthMessage(error.message || 'Unable to sign in.');
+      }
+    });
+  }
+
+  if (dom.googleSignin) {
+    dom.googleSignin.addEventListener('click', async () => {
+      try {
+        await signInWithGoogle();
+        setAuthMessage('Signed in—loading your data…');
+      } catch (error) {
+        setAuthMessage(error.message || 'Google sign-in failed.');
+      }
+    });
+  }
+
+  if (dom.logoutButton) {
+    dom.logoutButton.addEventListener('click', () => {
+      logOut();
+      showAuthPanel('Signed out. Sign back in to continue.');
+    });
+  }
+
+  observeAuthState(
+    (user, payload) => {
+      currentUser = user;
+      showApp(user);
+      hydrateFromRemote(payload);
+    },
+    () => {
+      currentUser = null;
+      Object.assign(state, defaultState());
+      saveState();
+      renderAll();
+      if (dom.userBadge) dom.userBadge.classList.add('hidden');
+      if (dom.logoutButton) dom.logoutButton.classList.add('hidden');
+      showAuthPanel('Use email + password to create your account or sign back in.');
+    }
+  );
 
   renderAll();
   setInterval(updateQuitTimers, 1000);
