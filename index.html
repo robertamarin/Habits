@@ -63,17 +63,9 @@
     </header>
 
     <main class="content-area">
-      <section class="card quit-banner span-12" data-section="quit" id="quit-banner">
-        <header class="card-head">
-          <div>
-            <h3>Quit tracker</h3>
-          </div>
-        </header>
-        <div class="quit-strip" id="quit-strip"></div>
-        <p class="muted" id="empty-quit-banner">No retired habits yet.</p>
-      </section>
-
-      <section class="card topline span-4 progress-card" id="progress">
+      <!-- Top Hero Section: Today Card + Habits Checklist -->
+      <div class="hero-grid span-12">
+        <section class="card topline progress-card" id="progress">
         <div class="summary-head">
           <div>
             <h2 id="today-label"></h2>
@@ -134,6 +126,34 @@
             </div>
           </div>
         </section>
+
+        <!-- Habits Checklist (moved to top-right) -->
+        <section class="card habits-checklist-card" data-focus-visible data-section="habits" id="habits">
+          <header class="card-head habits-head">
+            <div>
+              <h3>Today&rsquo;s habits</h3>
+            </div>
+            <div class="row wrap habit-actions">
+              <label class="stacked skinny">Select day
+                <input type="date" id="habit-date" />
+              </label>
+              <button id="mark-all" type="button" class="ghost">Mark all done</button>
+            </div>
+          </header>
+          <div id="habit-list" class="list draggable-list"></div>
+          <p class="muted" id="empty-habits">Add habits in Settings to see them here.</p>
+        </section>
+      </div>
+
+      <section class="card quit-banner span-12" data-section="quit" id="quit-banner">
+        <header class="card-head">
+          <div>
+            <h3>Quit tracker</h3>
+          </div>
+        </header>
+        <div class="quit-strip" id="quit-strip"></div>
+        <p class="muted" id="empty-quit-banner">No retired habits yet.</p>
+      </section>
 
         <!-- Analytics Dashboard -->
         <section class="card span-12 analytics-dashboard" data-section="analytics">
@@ -319,22 +339,6 @@
               <small id="pie-percent">0%</small>
             </div>
           </div>
-        </section>
-
-        <section class="card wide-habits span-12" data-focus-visible data-section="habits" id="habits">
-          <header class="card-head habits-head">
-            <div>
-              <h3>Today&rsquo;s habits</h3>
-            </div>
-            <div class="row wrap habit-actions">
-              <label class="stacked skinny">Select day
-                <input type="date" id="habit-date" />
-              </label>
-              <button id="mark-all" type="button" class="ghost">Mark all done</button>
-            </div>
-          </header>
-          <div id="habit-list" class="list draggable-list"></div>
-          <p class="muted" id="empty-habits">Add habits in Settings to see them here.</p>
         </section>
 
         <button type="button" class="cta-chip hidden" id="notes-cta">Open notes</button>
