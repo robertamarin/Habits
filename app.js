@@ -952,6 +952,9 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
 
   const renderCompletionPie = () => {
     if (!dom.pieVisual) return;
+
+    const currentValue = dom.pieHabit ? dom.pieHabit.value || 'all' : 'all';
+
     if (dom.pieHabit) {
       dom.pieHabit.innerHTML = '';
       const allOption = document.createElement('option');
@@ -974,7 +977,6 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     }
 
     const fallbackHabitId = state.habits[0].id;
-    const currentValue = dom.pieHabit ? dom.pieHabit.value || 'all' : 'all';
     const validValue = currentValue === 'all' || state.habits.some((h) => h.id === currentValue)
       ? currentValue
       : fallbackHabitId;
