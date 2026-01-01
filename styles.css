@@ -96,6 +96,20 @@ body {
   .content-area { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 }
 
+.auth-card {
+  width: min(880px, 94vw);
+  margin: 24px auto;
+  display: grid;
+  gap: 12px;
+}
+.auth-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+.auth-form { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; background: var(--panel); }
+.auth-actions { justify-content: space-between; gap: 12px; }
+
 .card {
   background: var(--panel);
   border: 1px solid var(--border);
