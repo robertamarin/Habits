@@ -2,6 +2,17 @@ import { signIn, signInWithGoogle, signUp, logOut, observeAuthState } from './au
 import {
   addHabit as addHabitRemote,
   removeHabit as removeHabitRemote,
+  loadDay as loadDayRemote,
+  upsertTaskList as upsertTaskListRemote,
+  upsertJournalList as upsertJournalListRemote,
+  upsertDreamList as upsertDreamListRemote,
+  upsertIdeaList as upsertIdeaListRemote,
+  addGoal as addGoalRemote,
+  updateGoal as updateGoalRemote,
+  removeGoal as removeGoalRemote,
+  addQuit as addQuitRemote,
+  updateQuit as updateQuitRemote,
+  removeQuit as removeQuitRemote,
   setMood as setMoodRemote,
   toggleCompletion as toggleCompletionRemote,
   updateHabit as updateHabitRemote
@@ -95,7 +106,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
 
   const hydrateFromRemote = (payload = {}) => {
     const todayKeyValue = today();
-    const { habits = [], day = {} } = payload;
+    const { habits = [], day = {}, goals = [], quits = [], yearDays = {} } = payload;
     state.habits = habits.map((h) => ({
       id: h.id,
       name: h.name,
@@ -105,10 +116,36 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       color: h.color || '#5563ff',
       created: h.createdAt?.toDate ? dayKey(h.createdAt.toDate()) : dayKey(h.createdAt || h.created || todayKeyValue)
     }));
+    // Merge today's day document
     const completions = day.completions || {};
     const dayState = getDay(todayKeyValue);
     dayState.habits = { ...dayState.habits, ...completions };
+    dayState.tasks = Array.isArray(day.tasks) ? day.tasks : (dayState.tasks || []);
+    dayState.journal = Array.isArray(day.journal) ? day.journal : (dayState.journal || []);
+    dayState.dreams = Array.isArray(day.dreams) ? day.dreams : (dayState.dreams || []);
+    dayState.ideas = Array.isArray(day.ideas) ? day.ideas : (dayState.ideas || []);
+
     if (day.mood !== undefined && day.mood !== null) state.mood[todayKeyValue] = day.mood;
+
+    // Top-level lists
+    state.goals = Array.isArray(goals) ? goals : [];
+    state.quits = Array.isArray(quits) ? quits : [];
+
+    // Year cache (optional): merge remote year days into local state.days so year view/pie charts work.
+    Object.entries(yearDays || {}).forEach(([k, v]) => {
+      const key = dayKey(k);
+      const existing = state.days[key] || { habits: {}, tasks: [], journal: [], dreams: [], ideas: [] };
+      const payloadDay = v || {};
+      state.days[key] = {
+        habits: { ...(existing.habits || {}), ...(payloadDay.completions || {}) },
+        tasks: Array.isArray(payloadDay.tasks) ? payloadDay.tasks : (existing.tasks || []),
+        journal: Array.isArray(payloadDay.journal) ? payloadDay.journal : (existing.journal || []),
+        dreams: Array.isArray(payloadDay.dreams) ? payloadDay.dreams : (existing.dreams || []),
+        ideas: Array.isArray(payloadDay.ideas) ? payloadDay.ideas : (existing.ideas || [])
+      };
+      if (payloadDay.mood !== undefined && payloadDay.mood !== null) state.mood[key] = payloadDay.mood;
+    });
+
     saveState();
     renderAll();
   };
@@ -568,9 +605,16 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       remove.type = 'button';
       remove.className = 'ghost';
       remove.textContent = 'Delete';
-      remove.addEventListener('click', () => {
+      remove.addEventListener('click', async () => {
         day.tasks = day.tasks.filter((t) => t.id !== task.id);
         saveState();
+        if (currentUser?.uid) {
+          try {
+            await upsertTaskListRemote(currentUser.uid, today(), day.tasks);
+          } catch (e) {
+            console.warn('Failed to save tasks to Firestore', e);
+          }
+        }
         renderTasks();
         renderHistory();
       });
@@ -706,9 +750,16 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
         remove.type = 'button';
         remove.className = 'ghost';
         remove.textContent = 'Delete';
-        remove.addEventListener('click', () => {
+        remove.addEventListener('click', async () => {
           day.journal = day.journal.filter((j) => j.id !== entry.id);
           saveState();
+          if (currentUser?.uid) {
+            try {
+              await upsertJournalListRemote(currentUser.uid, date, day.journal);
+            } catch (e) {
+              console.warn('Failed to save journal to Firestore', e);
+            }
+          }
           renderJournal();
           renderHistory();
         });
@@ -750,9 +801,16 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
         remove.type = 'button';
         remove.className = 'ghost';
         remove.textContent = 'Delete';
-        remove.addEventListener('click', () => {
+        remove.addEventListener('click', async () => {
           day.dreams = day.dreams.filter((j) => j.id !== entry.id);
           saveState();
+          if (currentUser?.uid) {
+            try {
+              await upsertDreamListRemote(currentUser.uid, date, day.dreams);
+            } catch (e) {
+              console.warn('Failed to save dreams to Firestore', e);
+            }
+          }
           renderDreams();
           renderHistory();
         });
@@ -1255,9 +1313,16 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
         remove.type = 'button';
         remove.className = 'ghost';
         remove.textContent = 'Delete';
-        remove.addEventListener('click', () => {
+        remove.addEventListener('click', async () => {
           day.ideas = day.ideas.filter((j) => j.id !== entry.id);
           saveState();
+          if (currentUser?.uid) {
+            try {
+              await upsertIdeaListRemote(currentUser.uid, date, day.ideas);
+            } catch (e) {
+              console.warn('Failed to save ideas to Firestore', e);
+            }
+          }
           renderIdeas();
           renderHistory();
         });
@@ -1443,10 +1508,17 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
         const reset = document.createElement('button');
         reset.type = 'button';
         reset.textContent = 'Reset';
-        reset.addEventListener('click', () => {
+        reset.addEventListener('click', async () => {
           if (!confirm('Reset this quit timer to today?')) return;
           quit.date = startOfDayIso();
           saveState();
+          if (currentUser?.uid) {
+            try {
+              await updateQuitRemote(currentUser.uid, quit.id, { date: quit.date });
+            } catch (e) {
+              console.warn('Failed to reset quit timer in Firestore', e);
+            }
+          }
           renderQuitList();
         });
         row.append(left, reset);
@@ -1523,11 +1595,18 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           edit.type = 'button';
           edit.className = 'ghost';
           edit.textContent = 'Edit';
-          edit.addEventListener('click', () => {
+          edit.addEventListener('click', async () => {
             const next = prompt('Update your goal', goal.title);
             if (!next || !next.trim()) return;
             goal.title = next.trim();
             saveState();
+            if (currentUser?.uid) {
+              try {
+                await updateGoalRemote(currentUser.uid, goal.id, { title: goal.title });
+              } catch (e) {
+                console.warn('Failed to update goal in Firestore', e);
+              }
+            }
             renderGoals();
             renderDashboardSummary();
           });
@@ -1535,9 +1614,16 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           remove.type = 'button';
           remove.className = 'ghost';
           remove.textContent = 'Delete';
-          remove.addEventListener('click', () => {
+          remove.addEventListener('click', async () => {
             state.goals = state.goals.filter((g) => g.id !== goal.id);
             saveState();
+            if (currentUser?.uid) {
+              try {
+                await removeGoalRemote(currentUser.uid, goal.id);
+              } catch (e) {
+                console.warn('Failed to remove goal from Firestore', e);
+              }
+            }
             renderGoals();
             renderDashboardSummary();
           });
@@ -1922,10 +2008,27 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
   }
 
   if (dom.habitDate) {
-    dom.habitDate.addEventListener('change', () => {
+    dom.habitDate.addEventListener('change', async () => {
       const next = dom.habitDate.value || today();
       state.selectedDate = dayKey(next);
       if (dom.todayLabel) dom.todayLabel.textContent = formatDate(state.selectedDate);
+
+      // Pull the selected day from Firestore so the dashboard looks identical
+      // on any device (yesterday/any date will populate correctly after login).
+      if (currentUser?.uid) {
+        try {
+          const remote = await loadDayRemote(currentUser.uid, state.selectedDate);
+          const dayState = getDay(state.selectedDate);
+          dayState.habits = { ...dayState.habits, ...(remote.completions || {}) };
+          dayState.tasks = Array.isArray(remote.tasks) ? remote.tasks : (dayState.tasks || []);
+          dayState.journal = Array.isArray(remote.journal) ? remote.journal : (dayState.journal || []);
+          dayState.dreams = Array.isArray(remote.dreams) ? remote.dreams : (dayState.dreams || []);
+          dayState.ideas = Array.isArray(remote.ideas) ? remote.ideas : (dayState.ideas || []);
+          if (remote.mood !== undefined && remote.mood !== null) state.mood[state.selectedDate] = remote.mood;
+        } catch (e) {
+          console.warn('Failed to load selected day from Firestore', e);
+        }
+      }
       saveState();
       renderChecklist();
       renderProgress();
@@ -1945,7 +2048,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
   });
 
   if (dom.taskForm) {
-    dom.taskForm.addEventListener('submit', (event) => {
+    dom.taskForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const title = dom.taskInput.value.trim();
       if (!title) return;
@@ -1953,41 +2056,64 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       day.tasks.push({ id: randomId(), title, created: Date.now() });
       dom.taskInput.value = '';
       saveState();
+      if (currentUser?.uid) {
+        try {
+          await upsertTaskListRemote(currentUser.uid, today(), day.tasks);
+        } catch (e) {
+          console.warn('Failed to save tasks to Firestore', e);
+        }
+      }
       renderTasks();
       renderHistory();
     });
   }
 
   if (dom.goalForm) {
-    dom.goalForm.addEventListener('submit', (e) => {
+    dom.goalForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const text = dom.goalInput.value.trim();
       if (!text) return;
-      state.goals.push({ id: randomId(), title: text, created: Date.now() });
+      const goal = { id: randomId(), title: text, created: Date.now() };
+      state.goals.push(goal);
       dom.goalInput.value = '';
       saveState();
+      if (currentUser?.uid) {
+        try {
+          await addGoalRemote(currentUser.uid, goal);
+        } catch (e) {
+          console.warn('Failed to save goal to Firestore', e);
+        }
+      }
       renderGoals();
       renderDashboardSummary();
     });
   }
 
   if (dom.quitForm) {
-    dom.quitForm.addEventListener('submit', (e) => {
+    dom.quitForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = dom.quitName.value.trim();
       const date = dom.quitDate.value || today();
       if (!name) return;
       const storedDate = startOfDayIso(date);
-      state.quits.push({ id: randomId(), name, date: storedDate });
+      const quit = { id: randomId(), name, date: storedDate, created: Date.now() };
+      state.quits.push(quit);
       dom.quitName.value = '';
       dom.quitDate.value = today();
       saveState();
+      if (currentUser?.uid) {
+        try {
+          await addQuitRemote(currentUser.uid, quit);
+        } catch (e) {
+          console.warn('Failed to save quit to Firestore', e);
+        }
+      }
       renderQuitList();
     });
   }
 
   if (dom.journalForm) {
-    dom.journalForm.addEventListener('submit', (event) => {
+    dom.journalForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const text = dom.journalText.value.trim();
       if (!text) return;
@@ -2003,13 +2129,20 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       dom.journalText.value = '';
       if (dom.journalSaved) dom.journalSaved.textContent = 'Saved';
       saveState();
+      if (currentUser?.uid) {
+        try {
+          await upsertJournalListRemote(currentUser.uid, today(), day.journal);
+        } catch (e) {
+          console.warn('Failed to save journal to Firestore', e);
+        }
+      }
       renderJournal();
       renderHistory();
     });
   }
 
   if (dom.dreamForm) {
-    dom.dreamForm.addEventListener('submit', (event) => {
+    dom.dreamForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const text = dom.dreamText.value.trim();
       if (!text) return;
@@ -2025,13 +2158,20 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       dom.dreamText.value = '';
       if (dom.dreamSaved) dom.dreamSaved.textContent = 'Saved';
       saveState();
+      if (currentUser?.uid) {
+        try {
+          await upsertDreamListRemote(currentUser.uid, today(), day.dreams);
+        } catch (e) {
+          console.warn('Failed to save dreams to Firestore', e);
+        }
+      }
       renderDreams();
       renderHistory();
     });
   }
 
   if (dom.ideaForm) {
-    dom.ideaForm.addEventListener('submit', (event) => {
+    dom.ideaForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const text = dom.ideaText.value.trim();
       if (!text) return;
@@ -2047,6 +2187,13 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       dom.ideaText.value = '';
       if (dom.ideaSaved) dom.ideaSaved.textContent = 'Saved';
       saveState();
+      if (currentUser?.uid) {
+        try {
+          await upsertIdeaListRemote(currentUser.uid, today(), day.ideas);
+        } catch (e) {
+          console.warn('Failed to save ideas to Firestore', e);
+        }
+      }
       renderIdeas();
       renderHistory();
     });
