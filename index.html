@@ -287,29 +287,26 @@
           <header class="card-head">
             <div>
               <h3>Daily mood</h3>
+              <p class="meta-line" id="mood-date-label"></p>
             </div>
+            <span class="badge" id="mood-status">Not saved</span>
           </header>
-          <div class="stack">
+          <div class="stack-sm">
             <div class="mood-quick" id="mood-quick" aria-label="Quick mood tracker">
-              <button type="button" class="ghost mood-chip" data-mood-value="1">😞 Low</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="2">😐 Flat</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="3">🙂 Okay</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="4">😃 Good</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="5">🤩 Great</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="1">😞</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="2">😐</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="3">🙂</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="4">😃</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="5">🤩</button>
             </div>
-            <label class="stacked">Mood for <span id="mood-date-label" class="muted"></span>
-              <select id="mood-select" aria-label="Select mood">
-                <option value="1">😞 1 - Low</option>
-                <option value="2">😐 2 - Flat</option>
-                <option value="3">🙂 3 - Okay</option>
-                <option value="4">😃 4 - Good</option>
-                <option value="5">🤩 5 - Great</option>
-              </select>
-            </label>
-            <div class="row wrap mood-actions">
-              <button type="button" class="primary" id="save-mood">Save mood</button>
-              <span class="badge" id="mood-status">Not saved</span>
-            </div>
+            <select id="mood-select" aria-label="Select mood" style="display: none;">
+              <option value="1">😞 1 - Low</option>
+              <option value="2">😐 2 - Flat</option>
+              <option value="3">🙂 3 - Okay</option>
+              <option value="4">😃 4 - Good</option>
+              <option value="5">🤩 5 - Great</option>
+            </select>
+            <div id="mood-trend" class="mood-trend"></div>
           </div>
         </section>
 

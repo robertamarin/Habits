@@ -183,6 +183,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     saveMood: document.getElementById('save-mood'),
     moodStatus: document.getElementById('mood-status'),
     moodDateLabel: document.getElementById('mood-date-label'),
+    moodTrend: document.getElementById('mood-trend'),
     pieHabit: document.getElementById('pie-habit'),
     pieRange: document.getElementById('pie-range'),
     pieVisual: document.getElementById('pie-visual'),
@@ -435,6 +436,45 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
         button.classList.toggle('active', active);
         button.setAttribute('aria-pressed', String(active));
       });
+    }
+
+    // Render mood trend for last 7 days
+    if (dom.moodTrend) {
+      const today = parseDate(date);
+      const last7Days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        last7Days.push(startOfDayIso(d));
+      }
+
+      const moodValues = last7Days.map(d => state.mood[d] || 0);
+      const avg = moodValues.filter(v => v > 0).reduce((sum, v) => sum + v, 0) / moodValues.filter(v => v > 0).length || 0;
+
+      dom.moodTrend.innerHTML = '';
+      const trendContainer = document.createElement('div');
+      trendContainer.className = 'mood-trend-bars';
+
+      last7Days.forEach((d, i) => {
+        const value = state.mood[d] || 0;
+        const bar = document.createElement('div');
+        bar.className = 'mood-bar';
+        bar.style.height = value > 0 ? `${(value / 5) * 100}%` : '4px';
+        bar.style.opacity = value > 0 ? '1' : '0.2';
+        bar.title = `${formatDate(d, { weekday: 'short', month: 'short', day: 'numeric' })}: ${value > 0 ? moodLabels[value] : 'No data'}`;
+        if (d === date) bar.classList.add('current');
+        trendContainer.appendChild(bar);
+      });
+
+      const trendLabel = document.createElement('p');
+      trendLabel.className = 'mood-trend-label meta-line';
+      if (avg > 0) {
+        trendLabel.textContent = `7-day avg: ${avg.toFixed(1)} ${moodFaces[Math.round(avg)]}`;
+      } else {
+        trendLabel.textContent = '7-day trend';
+      }
+
+      dom.moodTrend.append(trendLabel, trendContainer);
     }
   };
 
@@ -1701,8 +1741,12 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       left.append(name, meta);
 
       if (allowReset) {
+        const actions = document.createElement('div');
+        actions.className = 'row gap-sm';
+
         const reset = document.createElement('button');
         reset.type = 'button';
+        reset.className = 'ghost small';
         reset.textContent = 'Reset';
         reset.addEventListener('click', async () => {
           if (!confirm('Reset this quit timer to today?')) return;
@@ -1717,7 +1761,27 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           }
           renderQuitList();
         });
-        row.append(left, reset);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'ghost small danger';
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.addEventListener('click', async () => {
+          if (!confirm(`Delete "${quit.name}" from quit tracker?`)) return;
+          state.quits = state.quits.filter(q => q.id !== quit.id);
+          saveState();
+          if (currentUser?.uid) {
+            try {
+              await removeQuitRemote(currentUser.uid, quit.id);
+            } catch (e) {
+              console.warn('Failed to delete quit from Firestore', e);
+            }
+          }
+          renderQuitList();
+        });
+
+        actions.append(reset, deleteBtn);
+        row.append(left, actions);
       } else {
         row.append(left);
       }
