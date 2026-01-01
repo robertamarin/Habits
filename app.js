@@ -188,11 +188,9 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     pieVisual: document.getElementById('pie-visual'),
     pieCount: document.getElementById('pie-count'),
     piePercent: document.getElementById('pie-percent'),
-    pieDetail: document.getElementById('pie-detail'),
     habitList: document.getElementById('habit-list'),
     emptyHabits: document.getElementById('empty-habits'),
     streak: document.getElementById('streak'),
-    momentum: document.getElementById('momentum'),
     streakBar: document.getElementById('streak-bar'),
     markAll: document.getElementById('mark-all'),
     taskForm: document.getElementById('task-form'),
@@ -231,12 +229,9 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     closeSettings: document.getElementById('close-settings'),
     titleInput: document.getElementById('title-input'),
     accentPicker: document.getElementById('accent-picker'),
-    pace: document.getElementById('pace'),
-    focusTime: document.getElementById('focus-time'),
-    bestDay: document.getElementById('best-day'),
-    quitList: document.getElementById('quit-list'),
+    quitStrip: document.getElementById('quit-strip'),
+    emptyQuitBanner: document.getElementById('empty-quit-banner'),
     quitManageList: document.getElementById('quit-manage-list'),
-    emptyQuit: document.getElementById('empty-quit'),
     calendarMonth: document.getElementById('calendar-month'),
     prevMonth: document.getElementById('prev-month'),
     nextMonth: document.getElementById('next-month'),
@@ -248,10 +243,8 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     monthlyStrip: document.getElementById('monthly-strip'),
     historyMode: document.getElementById('history-mode'),
     historyToggle: document.getElementById('history-toggle'),
-    winsPill: document.getElementById('wins-pill'),
     toolbar: document.querySelector('.toolbar'),
     toolbarToggle: document.getElementById('toolbar-toggle'),
-    momentumBar: document.querySelector('.meter-bar span'),
     exportData: document.getElementById('export-data'),
     exportCsv: document.getElementById('export-csv'),
     importJson: document.getElementById('import-json'),
@@ -517,16 +510,18 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       const input = document.createElement('input');
       input.type = 'checkbox';
       input.checked = Boolean(day.habits[habit.id]);
-      input.addEventListener('change', async () => {
+      const updateState = (checked) => {
+        item.classList.toggle('completed', checked);
+        item.classList.toggle('pending', !checked);
+        miniFill.style.opacity = checked ? '1' : '0.5';
+        badge.textContent = checked ? 'Done' : 'Pending';
+      };
+      input.addEventListener('change', () => {
         day.habits[habit.id] = input.checked;
         saveState();
         renderProgress(true);
         renderHistory();
-        miniFill.style.opacity = input.checked ? '1' : '0.5';
-        badge.textContent = input.checked ? 'Done' : 'Pending';
-        if (currentUser) {
-          await toggleCompletionRemote(currentUser.uid, habit.id, date, input.checked);
-        }
+        updateState(input.checked);
       });
 
       const labels = document.createElement('div');
@@ -557,6 +552,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       topRow.append(body, badge, actions);
 
       item.append(topRow);
+      updateState(input.checked);
       dom.habitList.append(item);
 
       item.addEventListener('dragstart', () => item.classList.add('dragging'));
@@ -924,7 +920,6 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     lastProgressPercent = percent;
     dom.streak.textContent = `${computeStreak()}d`;
     renderStreakBar();
-    renderStats();
     renderWeekly();
     renderMonthly();
     renderDashboardSummary(percent, done, todayHabits.length, day.tasks.length);
@@ -955,38 +950,14 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     }
   };
 
-  const renderStats = () => {
-    if (!dom.momentum) return;
-    const dates = dateKeysBack(7);
-    const percents = dates.map((d) => dayCompletion(d)).filter((v) => v !== null);
-    const avg = percents.length ? Math.round(percents.reduce((a, b) => a + b, 0) / percents.length) : 0;
-    dom.momentum.textContent = `${avg}%`;
-
-    const todayPercent = dayCompletion(today()) ?? 0;
-    const yesterday = dayCompletion(dateKeysBack(2)[1]) ?? 0;
-    const diff = todayPercent - yesterday;
-    if (dom.pace) dom.pace.textContent = diff === 0 ? 'Even' : `${diff > 0 ? '+' : ''}${diff}%`;
-
-    const best = Object.keys(state.days).reduce((max, key) => {
-      const value = dayCompletion(key);
-      if (value === null) return max;
-      return Math.max(max, value);
-    }, 0);
-    if (dom.bestDay) dom.bestDay.textContent = `${best}%`;
-
-    if (dom.focusTime) {
-      const tasksDone = getDay(today()).tasks.length;
-      const minutes = tasksDone * 15;
-      dom.focusTime.textContent = `${(minutes / 60).toFixed(1)}h`;
-    }
-    if (dom.momentumBar) dom.momentumBar.style.width = `${avg}%`;
-
-  };
-
   const renderCompletionPie = () => {
     if (!dom.pieVisual) return;
     if (dom.pieHabit) {
       dom.pieHabit.innerHTML = '';
+      const allOption = document.createElement('option');
+      allOption.value = 'all';
+      allOption.textContent = 'All habits';
+      dom.pieHabit.append(allOption);
       state.habits.forEach((habit) => {
         const opt = document.createElement('option');
         opt.value = habit.id;
@@ -998,16 +969,16 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     if (!state.habits.length) {
       if (dom.pieCount) dom.pieCount.textContent = '0/0';
       if (dom.piePercent) dom.piePercent.textContent = '0%';
-      if (dom.pieDetail) dom.pieDetail.textContent = 'Add a habit to see insights.';
       dom.pieVisual.style.background = 'conic-gradient(var(--panel-soft) 0deg, var(--panel-soft) 360deg)';
       return;
     }
 
     const fallbackHabitId = state.habits[0].id;
-    const selectedHabitId = dom.pieHabit && state.habits.some((h) => h.id === dom.pieHabit.value)
-      ? dom.pieHabit.value
+    const currentValue = dom.pieHabit ? dom.pieHabit.value || 'all' : 'all';
+    const validValue = currentValue === 'all' || state.habits.some((h) => h.id === currentValue)
+      ? currentValue
       : fallbackHabitId;
-    if (dom.pieHabit) dom.pieHabit.value = selectedHabitId;
+    if (dom.pieHabit) dom.pieHabit.value = validValue;
 
     const daysBack = Number(dom.pieRange ? dom.pieRange.value : 14) || 14;
     const anchor = parseDateValue(selectedDate());
@@ -1018,21 +989,23 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       return dayKey(d);
     });
 
-    const habit = state.habits.find((h) => h.id === selectedHabitId);
-    const activeDates = dates.filter((date) => habit && isHabitActiveOn(habit, date));
-    const totalDays = activeDates.length;
-    const completedDays = activeDates.filter((date) => state.days[date]?.habits?.[selectedHabitId]).length;
-    const missedDays = Math.max(0, totalDays - completedDays);
-    const percent = totalDays ? Math.round((completedDays / totalDays) * 100) : 0;
-    const fillStop = totalDays ? (completedDays / totalDays) * 100 : 0;
+    const selectedIds = validValue === 'all' ? state.habits.map((h) => h.id) : [validValue];
+    const totals = dates.reduce(
+      (acc, date) => {
+        const activeHabits = state.habits.filter((habit) => selectedIds.includes(habit.id) && isHabitActiveOn(habit, date));
+        if (!activeHabits.length) return acc;
+        acc.total += activeHabits.length;
+        const done = activeHabits.filter((habit) => state.days[date]?.habits?.[habit.id]).length;
+        acc.done += done;
+        return acc;
+      },
+      { total: 0, done: 0 }
+    );
+    const percent = totals.total ? Math.round((totals.done / totals.total) * 100) : 0;
+    const fillStop = totals.total ? (totals.done / totals.total) * 100 : 0;
     dom.pieVisual.style.background = `conic-gradient(var(--accent-strong) 0% ${fillStop}%, color-mix(in srgb, var(--accent-soft) 50%, var(--border)) ${fillStop}% 100%)`;
-    if (dom.pieCount) dom.pieCount.textContent = `${completedDays}/${totalDays || daysBack}`;
+    if (dom.pieCount) dom.pieCount.textContent = `${totals.done}/${totals.total}`;
     if (dom.piePercent) dom.piePercent.textContent = `${percent}%`;
-    if (dom.pieDetail) {
-      dom.pieDetail.textContent = totalDays
-        ? `${completedDays} completed · ${missedDays} missed in ${daysBack} days`
-        : 'No active days in this range.';
-    }
   };
 
   const renderWeekly = () => {
@@ -1528,13 +1501,31 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       return row;
     };
 
-    if (dom.quitList) {
-      dom.quitList.innerHTML = '';
+    if (dom.quitStrip) {
+      dom.quitStrip.innerHTML = '';
       if (!state.quits.length) {
-        if (dom.emptyQuit) dom.emptyQuit.classList.remove('hidden');
+        dom.quitStrip.classList.add('empty');
+        if (dom.emptyQuitBanner) dom.emptyQuitBanner.classList.remove('hidden');
       } else {
-        if (dom.emptyQuit) dom.emptyQuit.classList.add('hidden');
-        state.quits.forEach((quit) => dom.quitList.append(buildRow(quit, false)));
+        dom.quitStrip.classList.remove('empty');
+        if (dom.emptyQuitBanner) dom.emptyQuitBanner.classList.add('hidden');
+        state.quits.forEach((quit) => {
+          const chip = document.createElement('div');
+          chip.className = 'quit-pill';
+
+          const name = document.createElement('span');
+          name.className = 'quit-name';
+          name.textContent = quit.name;
+
+          const timer = document.createElement('span');
+          timer.className = 'elapsed';
+          timer.dataset.timer = quit.date;
+          timer.dataset.dateLabel = formatDate(quit.date, { month: 'short', day: 'numeric', year: 'numeric' });
+          timer.title = timer.dataset.dateLabel;
+
+          chip.append(name, timer);
+          dom.quitStrip.append(chip);
+        });
       }
     }
 
@@ -1578,7 +1569,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     if (dom.goalManageList) {
       dom.goalManageList.innerHTML = '';
       if (!sortedGoals.length) {
-        dom.goalManageList.innerHTML = '<div class="empty">Add your big targets for 2026.</div>';
+        dom.goalManageList.innerHTML = '<div class="empty">No goals yet.</div>';
       } else {
         sortedGoals.forEach((goal) => {
           const row = document.createElement('div');
