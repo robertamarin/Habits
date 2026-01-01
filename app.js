@@ -859,6 +859,226 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     return longest;
   };
 
+  // ===== ADVANCED ANALYTICS =====
+
+  const computeConsistencyScore = (days = 7) => {
+    const dates = dateKeysBack(days).reverse();
+    let totalPossible = 0;
+    let totalCompleted = 0;
+
+    dates.forEach((date) => {
+      const todaysHabits = activeHabitsForDate(date);
+      totalPossible += todaysHabits.length;
+      const day = state.days[date];
+      totalCompleted += todaysHabits.filter((h) => day?.habits?.[h.id]).length;
+    });
+
+    return totalPossible ? Math.round((totalCompleted / totalPossible) * 100) : 0;
+  };
+
+  const getBestPerformingHabits = (limit = 3, days = 30) => {
+    return state.habits
+      .filter((h) => h.isActive)
+      .map((habit) => {
+        const history = habitHistory(habit, days);
+        const valid = history.filter((v) => v !== null);
+        const completed = valid.filter(Boolean).length;
+        const rate = valid.length ? (completed / valid.length) * 100 : 0;
+        const streak = computeHabitStreak(habit);
+        return { habit, rate, streak, completed, total: valid.length };
+      })
+      .sort((a, b) => b.rate - a.rate || b.streak - a.streak)
+      .slice(0, limit);
+  };
+
+  const computeHabitStreak = (habit) => {
+    let streak = 0;
+    for (let i = 0; i < 365; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = dayKey(d);
+      if (!habitAppliesToDate(habit, key)) continue;
+      const day = state.days[key];
+      if (day?.habits?.[habit.id]) {
+        streak += 1;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  };
+
+  const habitAppliesToDate = (habit, dateKey) => {
+    const habitDate = new Date(habit.createdAt?.seconds * 1000 || Date.now());
+    const checkDate = parseDateValue(dateKey);
+    if (checkDate < habitDate) return false;
+
+    if (habit.cadence === 'daily') return true;
+    if (habit.cadence === 'weekdays') {
+      const dow = checkDate.getDay();
+      return dow >= 1 && dow <= 5;
+    }
+    if (habit.cadence === 'custom' && habit.days) {
+      const dow = checkDate.getDay();
+      return habit.days.includes(dow);
+    }
+    return true;
+  };
+
+  const getCompletionPatterns = (days = 90) => {
+    const dayOfWeekStats = Array(7).fill(0).map(() => ({ total: 0, completed: 0 }));
+    const dates = dateKeysBack(days);
+
+    dates.forEach((dateKey) => {
+      const date = parseDateValue(dateKey);
+      const dayOfWeek = date.getDay();
+      const todaysHabits = activeHabitsForDate(dateKey);
+      const day = state.days[dateKey];
+      const completed = todaysHabits.filter((h) => day?.habits?.[h.id]).length;
+
+      dayOfWeekStats[dayOfWeek].total += todaysHabits.length;
+      dayOfWeekStats[dayOfWeek].completed += completed;
+    });
+
+    return dayOfWeekStats.map((stat, index) => ({
+      day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][index],
+      dayFull: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][index],
+      rate: stat.total ? Math.round((stat.completed / stat.total) * 100) : 0,
+      total: stat.total,
+      completed: stat.completed
+    }));
+  };
+
+  const getPredictiveInsights = () => {
+    const insights = [];
+    const currentStreak = computeStreak();
+    const consistency7 = computeConsistencyScore(7);
+    const consistency30 = computeConsistencyScore(30);
+    const patterns = getCompletionPatterns(90);
+
+    // Streak risk warning
+    if (currentStreak >= 7 && consistency7 < 80) {
+      insights.push({
+        type: 'warning',
+        icon: '⚠️',
+        text: `Your ${currentStreak}-day streak is at risk. You've only completed ${consistency7}% this week.`,
+        priority: 3
+      });
+    }
+
+    // Improvement trend
+    if (consistency7 > consistency30 + 10) {
+      insights.push({
+        type: 'success',
+        icon: '📈',
+        text: `You're improving! Up ${consistency7 - consistency30}% from your 30-day average.`,
+        priority: 2
+      });
+    } else if (consistency7 < consistency30 - 10) {
+      insights.push({
+        type: 'info',
+        icon: '📉',
+        text: `Consistency is down ${consistency30 - consistency7}% from your 30-day average. Keep pushing!`,
+        priority: 2
+      });
+    }
+
+    // Best day recommendation
+    const bestDay = patterns.reduce((a, b) => a.rate > b.rate ? a : b);
+    const worstDay = patterns.reduce((a, b) => a.rate < b.rate && b.total > 0 ? a : b);
+
+    if (bestDay.rate > 80 && bestDay.total > 0) {
+      insights.push({
+        type: 'info',
+        icon: '💡',
+        text: `${bestDay.dayFull} is your best day with ${bestDay.rate}% completion.`,
+        priority: 1
+      });
+    }
+
+    if (worstDay.rate < 60 && worstDay.total > 0) {
+      insights.push({
+        type: 'info',
+        icon: '🎯',
+        text: `Focus on ${worstDay.dayFull} - your completion rate is ${worstDay.rate}%.`,
+        priority: 1
+      });
+    }
+
+    // Milestone celebrations
+    if (currentStreak === 7) {
+      insights.push({
+        type: 'success',
+        icon: '🎉',
+        text: 'Congratulations on your 7-day streak!',
+        priority: 4
+      });
+    } else if (currentStreak === 30) {
+      insights.push({
+        type: 'success',
+        icon: '🏆',
+        text: 'Amazing! You\'ve hit a 30-day streak!',
+        priority: 4
+      });
+    } else if (currentStreak === 60) {
+      insights.push({
+        type: 'success',
+        icon: '🌟',
+        text: 'Incredible! 60 days of consistency!',
+        priority: 4
+      });
+    } else if (currentStreak === 100) {
+      insights.push({
+        type: 'success',
+        icon: '💎',
+        text: 'Legendary! 100-day streak achieved!',
+        priority: 4
+      });
+    }
+
+    // Sort by priority (highest first)
+    return insights.sort((a, b) => b.priority - a.priority).slice(0, 5);
+  };
+
+  const getWeekProjection = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysIntoWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+    const daysRemaining = 7 - daysIntoWeek;
+
+    const weekDates = [];
+    for (let i = -daysIntoWeek; i < daysRemaining; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      weekDates.push(dayKey(d));
+    }
+
+    let totalPossible = 0;
+    let totalCompleted = 0;
+
+    weekDates.forEach((date) => {
+      const todaysHabits = activeHabitsForDate(date);
+      totalPossible += todaysHabits.length;
+      const day = state.days[date];
+      if (day) {
+        totalCompleted += todaysHabits.filter((h) => day.habits?.[h.id]).length;
+      }
+    });
+
+    const currentRate = totalPossible ? Math.round((totalCompleted / totalPossible) * 100) : 0;
+    const projectedTotal = totalCompleted + (daysRemaining * state.habits.filter(h => h.isActive).length);
+    const projectedRate = totalPossible ? Math.round((projectedTotal / (totalPossible + (daysRemaining * state.habits.filter(h => h.isActive).length))) * 100) : 0;
+
+    return {
+      currentRate,
+      totalCompleted,
+      totalPossible,
+      daysRemaining,
+      projectedRate,
+      onTrack: currentRate >= 70
+    };
+  };
+
   const streakThrough = (dateValue) => {
     let streak = 0;
     const start = parseDateValue(dateValue);
@@ -924,6 +1144,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     renderMonthly();
     renderDashboardSummary(percent, done, todayHabits.length, day.tasks.length);
     renderCompletionPie();
+    renderAnalyticsDashboard();
   };
 
   const renderStreakBar = () => {
@@ -1645,6 +1866,189 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     if (dom.summaryGoals) dom.summaryGoals.textContent = String(state.goals.length);
   };
 
+  // ===== ANALYTICS DASHBOARD RENDERING =====
+
+  const renderAnalyticsDashboard = () => {
+    // Consistency scores
+    const consistency7 = computeConsistencyScore(7);
+    const consistency30 = computeConsistencyScore(30);
+    const consistency90 = computeConsistencyScore(90);
+
+    const elem7 = document.getElementById('consistency-7');
+    const elem30 = document.getElementById('consistency-30');
+    const elem90 = document.getElementById('consistency-90');
+    const trend7 = document.getElementById('trend-7');
+    const trend30 = document.getElementById('trend-30');
+    const trend90 = document.getElementById('trend-90');
+
+    if (elem7) elem7.textContent = `${consistency7}%`;
+    if (elem30) elem30.textContent = `${consistency30}%`;
+    if (elem90) elem90.textContent = `${consistency90}%`;
+
+    // Trend indicators
+    if (trend7) {
+      const diff = consistency7 - consistency30;
+      if (diff > 10) {
+        trend7.textContent = `↑ ${diff}% vs 30-day`;
+        trend7.className = 'trend-indicator up';
+      } else if (diff < -10) {
+        trend7.textContent = `↓ ${Math.abs(diff)}% vs 30-day`;
+        trend7.className = 'trend-indicator down';
+      } else {
+        trend7.textContent = '→ Stable';
+        trend7.className = 'trend-indicator stable';
+      }
+    }
+
+    if (trend30) {
+      const diff = consistency30 - consistency90;
+      if (diff > 10) {
+        trend30.textContent = `↑ ${diff}% vs 90-day`;
+        trend30.className = 'trend-indicator up';
+      } else if (diff < -10) {
+        trend30.textContent = `↓ ${Math.abs(diff)}% vs 90-day`;
+        trend30.className = 'trend-indicator down';
+      } else {
+        trend30.textContent = '→ Stable';
+        trend30.className = 'trend-indicator stable';
+      }
+    }
+
+    if (trend90) {
+      trend90.textContent = 'Overall trend';
+      trend90.className = 'trend-indicator stable';
+    }
+
+    // Week projection
+    const weekProj = getWeekProjection();
+    const projElem = document.getElementById('week-projection');
+    const statusElem = document.getElementById('week-status');
+
+    if (projElem) projElem.textContent = `${weekProj.currentRate}%`;
+    if (statusElem) {
+      if (weekProj.onTrack) {
+        statusElem.textContent = `✓ On track`;
+        statusElem.style.color = 'rgba(255, 255, 255, 0.9)';
+      } else {
+        statusElem.textContent = `${weekProj.daysRemaining} days left`;
+        statusElem.style.color = 'rgba(255, 255, 255, 0.8)';
+      }
+    }
+
+    // Best performing habits
+    renderBestHabits();
+
+    // Completion patterns
+    renderCompletionPatterns();
+
+    // Predictive insights
+    renderPredictiveInsights();
+  };
+
+  const renderBestHabits = () => {
+    const listElem = document.getElementById('best-habits-list');
+    if (!listElem) return;
+
+    const bestHabits = getBestPerformingHabits(3, 30);
+
+    if (bestHabits.length === 0) {
+      listElem.innerHTML = '<p class="empty-insights">No habit data yet. Complete some habits to see your top performers!</p>';
+      return;
+    }
+
+    listElem.innerHTML = '';
+    bestHabits.forEach((item, index) => {
+      const div = document.createElement('div');
+      div.className = `habit-performer rank-${index + 1}`;
+
+      const rank = document.createElement('div');
+      rank.className = 'rank';
+      rank.textContent = String(index + 1);
+
+      const info = document.createElement('div');
+      info.className = 'info';
+
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = item.habit.icon ? `${item.habit.icon} ${item.habit.name}` : item.habit.name;
+
+      const stats = document.createElement('div');
+      stats.className = 'stats';
+      stats.textContent = `${item.completed}/${item.total} completed • ${item.streak}d streak`;
+
+      info.append(name, stats);
+
+      const rate = document.createElement('div');
+      rate.className = 'rate';
+      rate.textContent = `${Math.round(item.rate)}%`;
+
+      div.append(rank, info, rate);
+      listElem.append(div);
+    });
+  };
+
+  const renderCompletionPatterns = () => {
+    const chartElem = document.getElementById('day-patterns-chart');
+    if (!chartElem) return;
+
+    const patterns = getCompletionPatterns(90);
+    chartElem.innerHTML = '';
+
+    patterns.forEach((pattern) => {
+      const bar = document.createElement('div');
+      bar.className = 'pattern-bar';
+
+      const dayLabel = document.createElement('div');
+      dayLabel.className = 'day-label';
+      dayLabel.textContent = pattern.day;
+
+      const track = document.createElement('div');
+      track.className = 'bar-track';
+
+      const fill = document.createElement('div');
+      fill.className = 'bar-fill';
+      fill.style.width = `${pattern.rate}%`;
+
+      track.append(fill);
+
+      const value = document.createElement('div');
+      value.className = 'bar-value';
+      value.textContent = `${pattern.rate}%`;
+
+      bar.append(dayLabel, track, value);
+      chartElem.append(bar);
+    });
+  };
+
+  const renderPredictiveInsights = () => {
+    const listElem = document.getElementById('predictive-insights');
+    if (!listElem) return;
+
+    const insights = getPredictiveInsights();
+
+    if (insights.length === 0) {
+      listElem.innerHTML = '<p class="empty-insights">Keep tracking your habits to unlock personalized insights!</p>';
+      return;
+    }
+
+    listElem.innerHTML = '';
+    insights.forEach((insight) => {
+      const item = document.createElement('div');
+      item.className = `insight-item ${insight.type}`;
+
+      const icon = document.createElement('div');
+      icon.className = 'icon';
+      icon.textContent = insight.icon;
+
+      const text = document.createElement('p');
+      text.className = 'text';
+      text.textContent = insight.text;
+
+      item.append(icon, text);
+      listElem.append(item);
+    });
+  };
+
   const updateQuitTimers = () => {
     const timers = document.querySelectorAll('[data-timer]');
     timers.forEach((node) => {
@@ -2287,6 +2691,88 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       refreshFromStorage(next);
     } catch (e) {
       console.warn('Unable to sync state from storage', e);
+    }
+  });
+
+  // ===== KEYBOARD SHORTCUTS =====
+
+  const keyboardShortcuts = {
+    's': () => {
+      if (dom.settingsModal) dom.settingsModal.showModal();
+    },
+    'h': () => {
+      if (dom.habitInput) {
+        dom.habitInput.focus();
+        dom.habitInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    },
+    'w': () => {
+      if (dom.taskInput) {
+        dom.taskInput.focus();
+        dom.taskInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    },
+    'j': () => {
+      const journalText = document.getElementById('journal-text');
+      if (journalText) {
+        journalText.focus();
+        journalText.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    },
+    'm': () => {
+      const firstHabit = dom.habitList?.querySelector('input[type="checkbox"]');
+      if (firstHabit) {
+        firstHabit.focus();
+        firstHabit.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    },
+    'g': () => {
+      const goalsSection = document.getElementById('goals');
+      if (goalsSection) {
+        goalsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    },
+    'a': () => {
+      const analyticsSection = document.querySelector('.analytics-dashboard');
+      if (analyticsSection) {
+        analyticsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    },
+    'Escape': () => {
+      if (dom.settingsModal?.open) {
+        dom.settingsModal.close();
+      }
+      if (dom.dayDetail?.open) {
+        dom.dayDetail.close();
+      }
+    },
+    '?': () => {
+      alert(
+        'Keyboard Shortcuts:\n\n' +
+        'S - Open Settings\n' +
+        'H - Focus Habit Input\n' +
+        'W - Focus Quick Wins\n' +
+        'J - Focus Journal\n' +
+        'M - Focus First Habit\n' +
+        'G - Go to Goals\n' +
+        'A - Go to Analytics\n' +
+        'ESC - Close Modals\n' +
+        '? - Show This Help'
+      );
+    }
+  };
+
+  document.addEventListener('keydown', (event) => {
+    // Don't trigger shortcuts when typing in input fields
+    if (event.target.matches('input, textarea, select')) return;
+
+    // Don't trigger if modifier keys are pressed (except Shift for ?)
+    if (event.ctrlKey || event.altKey || event.metaKey) return;
+
+    const handler = keyboardShortcuts[event.key];
+    if (handler) {
+      event.preventDefault();
+      handler();
     }
   });
 })();

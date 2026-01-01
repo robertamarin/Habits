@@ -135,6 +135,59 @@
           </div>
         </section>
 
+        <!-- Analytics Dashboard -->
+        <section class="card span-12 analytics-dashboard" data-section="analytics">
+          <header class="card-head">
+            <div>
+              <h3>Analytics & Insights</h3>
+              <p class="muted" style="margin: 4px 0 0; font-size: 14px;">Track your progress and identify patterns</p>
+            </div>
+          </header>
+
+          <div class="analytics-grid">
+            <div class="insight-card">
+              <p class="stat-label">7-Day Consistency</p>
+              <p class="stat-value" id="consistency-7">--</p>
+              <div class="trend-indicator" id="trend-7"></div>
+            </div>
+
+            <div class="insight-card">
+              <p class="stat-label">30-Day Consistency</p>
+              <p class="stat-value" id="consistency-30">--</p>
+              <div class="trend-indicator" id="trend-30"></div>
+            </div>
+
+            <div class="insight-card">
+              <p class="stat-label">90-Day Consistency</p>
+              <p class="stat-value" id="consistency-90">--</p>
+              <div class="trend-indicator" id="trend-90"></div>
+            </div>
+
+            <div class="insight-card highlight">
+              <p class="stat-label">This Week</p>
+              <p class="stat-value" id="week-projection">--</p>
+              <p class="stat-sub" id="week-status"></p>
+            </div>
+          </div>
+
+          <div class="insights-row">
+            <div class="best-habits-panel panel-section">
+              <h4>Top Performers (30 days)</h4>
+              <div id="best-habits-list" class="habits-showcase"></div>
+            </div>
+
+            <div class="patterns-panel panel-section">
+              <h4>Completion by Day</h4>
+              <div id="day-patterns-chart" class="patterns-chart"></div>
+            </div>
+
+            <div class="predictions-panel panel-section">
+              <h4>Insights</h4>
+              <div id="predictive-insights" class="insights-list"></div>
+            </div>
+          </div>
+        </section>
+
         <div class="stack span-4 chart-stack" id="stats">
           <section class="card weekly-card" data-focus-hidden data-section="weekly">
             <header class="card-head">
