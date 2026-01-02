@@ -380,10 +380,10 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
 
   const completionLevel = (percent, hasHabits, hasData = true) => {
     if (!hasData || !hasHabits || percent === null) return 0;
-    if (percent >= 95) return 1;
-    if (percent >= 70) return 2;
-    if (percent >= 35) return 3;
-    return 4;
+    if (percent >= 95) return 4;
+    if (percent >= 70) return 3;
+    if (percent >= 35) return 2;
+    return 1;
   };
 
   const renderTitle = () => {
