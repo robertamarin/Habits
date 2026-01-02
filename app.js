@@ -511,6 +511,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
         item.classList.toggle('completed', checked);
         item.classList.toggle('pending', !checked);
         miniFill.style.opacity = checked ? '1' : '0.5';
+        badge.textContent = checked ? 'Done' : 'Pending';
       };
       input.addEventListener('change', () => {
         day.habits[habit.id] = input.checked;
@@ -538,9 +539,14 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       actions.className = 'habit-actions';
       actions.append(handle);
 
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = input.checked ? 'Done' : 'Pending';
+      badge.style.borderColor = habit.color || 'var(--border)';
+
       const topRow = document.createElement('div');
       topRow.className = 'row between';
-      topRow.append(body, actions);
+      topRow.append(body, badge, actions);
 
       item.append(topRow);
       updateState(input.checked);
@@ -1632,7 +1638,11 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           row.className = 'goal-row view-only';
           const title = document.createElement('strong');
           title.textContent = goal.title;
-          row.append(title);
+          const meta = document.createElement('div');
+          meta.className = 'meta';
+          const createdDate = goal.created ? new Date(goal.created) : new Date();
+          meta.textContent = formatDate(dayKey(createdDate));
+          row.append(title, meta);
           dom.goalList.append(row);
         });
       }
@@ -1648,6 +1658,10 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           row.className = 'goal-row';
           const title = document.createElement('strong');
           title.textContent = goal.title;
+          const meta = document.createElement('div');
+          meta.className = 'meta';
+          const createdDate = goal.created ? new Date(goal.created) : new Date();
+          meta.textContent = formatDate(dayKey(createdDate));
           const actions = document.createElement('div');
           actions.className = 'row';
           const edit = document.createElement('button');
