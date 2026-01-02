@@ -31,6 +31,22 @@ const emptyDayDoc = () => ({
 const userDoc = (uid) => doc(db, 'users', uid);
 const subcol = (uid, name) => collection(db, 'users', uid, name);
 
+const clearCollection = async (uid, name) => {
+  const snap = await getDocs(subcol(uid, name));
+  const deletions = [];
+  snap.forEach((docSnap) => deletions.push(deleteDoc(docSnap.ref)));
+  await Promise.all(deletions);
+};
+
+export async function resetUserData(uid) {
+  await Promise.all([
+    clearCollection(uid, 'habits'),
+    clearCollection(uid, 'days'),
+    clearCollection(uid, 'goals'),
+    clearCollection(uid, 'quits')
+  ]);
+}
+
 // -----------------------------------------------------------------------------
 // Habits
 // -----------------------------------------------------------------------------

@@ -13,6 +13,7 @@ import {
   addQuit as addQuitRemote,
   updateQuit as updateQuitRemote,
   removeQuit as removeQuitRemote,
+  resetUserData as resetUserDataRemote,
   setMood as setMoodRemote,
   toggleCompletion as toggleCompletionRemote,
   updateHabit as updateHabitRemote
@@ -26,7 +27,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     habits: [],
     days: {},
     mood: {},
-    theme: 'light',
+    theme: 'dark',
     title: "Robert's 2026 Habit Engine",
     accent: 'violet',
     quits: [],
@@ -1767,14 +1768,31 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
   }
 
   if (dom.reset) {
-    dom.reset.addEventListener('click', () => {
+    dom.reset.addEventListener('click', async () => {
       if (!confirm('This clears all saved habits, tasks, journals, dreams, and goals. Continue?')) return;
+      const originalLabel = dom.reset.textContent;
+      dom.reset.disabled = true;
+      dom.reset.textContent = 'Resetting...';
+      let remoteCleared = true;
+      if (currentUser?.uid) {
+        try {
+          await resetUserDataRemote(currentUser.uid);
+        } catch (error) {
+          remoteCleared = false;
+          console.warn('Failed to clear Firestore data', error);
+        }
+      }
       Object.assign(state, defaultState());
       saveState();
       renderTitle();
       applyTheme();
       applyAccent();
       renderAll();
+      dom.reset.disabled = false;
+      dom.reset.textContent = originalLabel;
+      if (!remoteCleared) {
+        alert('We cleared your local data, but the cloud reset did not complete. Please try again.');
+      }
     });
   }
 
