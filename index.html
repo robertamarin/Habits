@@ -73,9 +73,27 @@
         <p class="muted" id="empty-quit-banner">No retired habits yet.</p>
       </section>
 
+      <section class="card wide-habits span-12 primary-focus" data-focus-visible data-section="habits" id="habits">
+        <header class="card-head habits-head">
+          <div>
+            <p class="eyebrow">Primary checklist</p>
+            <h3>Today&rsquo;s habits</h3>
+          </div>
+          <div class="row wrap habit-actions">
+            <label class="stacked skinny">Select day
+              <input type="date" id="habit-date" />
+            </label>
+            <button id="mark-all" type="button" class="ghost">Mark all done</button>
+          </div>
+        </header>
+        <div id="habit-list" class="list draggable-list"></div>
+        <p class="muted" id="empty-habits">Add habits in Settings to see them here.</p>
+      </section>
+
       <section class="card topline span-4 progress-card" id="progress">
         <div class="summary-head">
           <div>
+            <p class="eyebrow">System telemetry</p>
             <h2 id="today-label"></h2>
           </div>
         </div>
@@ -105,6 +123,22 @@
               </div>
               <p class="circle-label">Current streak</p>
               <p class="circle-sub milestone-label">Next milestone: 7 days</p>
+            </div>
+          </div>
+          <div class="trend-panel">
+            <div>
+              <p class="stat-label">Momentum</p>
+              <p class="stat-value" id="momentum-value">Steady signal</p>
+              <p class="muted">7-day completion pulse</p>
+            </div>
+            <div class="micro-trend" aria-hidden="true">
+              <span style="height: 22%;"></span>
+              <span style="height: 38%;"></span>
+              <span style="height: 58%;"></span>
+              <span style="height: 46%;"></span>
+              <span style="height: 72%;"></span>
+              <span style="height: 64%;"></span>
+              <span style="height: 84%;"></span>
             </div>
           </div>
           <div class="summary-bar headline metrics-grid" aria-label="Dashboard summary">
@@ -210,36 +244,6 @@
           </section>
         </div>
 
-        <section class="card span-4 stable-card compact-card" id="mood-card" data-section="mood">
-          <header class="card-head">
-            <div>
-              <h3>Daily mood</h3>
-            </div>
-          </header>
-          <div class="stack">
-            <div class="mood-quick" id="mood-quick" aria-label="Quick mood tracker">
-              <button type="button" class="ghost mood-chip" data-mood-value="1">😞 Low</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="2">😐 Flat</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="3">🙂 Okay</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="4">😃 Good</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="5">🤩 Great</button>
-            </div>
-            <label class="stacked">Mood for <span id="mood-date-label" class="muted"></span>
-              <select id="mood-select" aria-label="Select mood">
-                <option value="1">😞 1 - Low</option>
-                <option value="2">😐 2 - Flat</option>
-                <option value="3">🙂 3 - Okay</option>
-                <option value="4">😃 4 - Good</option>
-                <option value="5">🤩 5 - Great</option>
-              </select>
-            </label>
-            <div class="row wrap mood-actions">
-              <button type="button" class="primary" id="save-mood">Save mood</button>
-              <span class="badge" id="mood-status">Not saved</span>
-            </div>
-          </div>
-        </section>
-
         <section class="card span-4 stable-card" id="pie-card" data-section="insights">
           <header class="card-head">
             <div>
@@ -268,20 +272,34 @@
           </div>
         </section>
 
-        <section class="card wide-habits span-12" data-focus-visible data-section="habits" id="habits">
-          <header class="card-head habits-head">
+        <section class="card span-4 stable-card compact-card" id="mood-card" data-section="mood">
+          <header class="card-head">
             <div>
-              <h3>Today&rsquo;s habits</h3>
-            </div>
-            <div class="row wrap habit-actions">
-              <label class="stacked skinny">Select day
-                <input type="date" id="habit-date" />
-              </label>
-              <button id="mark-all" type="button" class="ghost">Mark all done</button>
+              <h3>Daily mood</h3>
             </div>
           </header>
-          <div id="habit-list" class="list draggable-list"></div>
-          <p class="muted" id="empty-habits">Add habits in Settings to see them here.</p>
+          <div class="stack">
+            <div class="mood-quick" id="mood-quick" aria-label="Quick mood tracker">
+              <button type="button" class="ghost mood-chip" data-mood-value="1">😞 Low</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="2">😐 Flat</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="3">🙂 Okay</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="4">😃 Good</button>
+              <button type="button" class="ghost mood-chip" data-mood-value="5">🤩 Great</button>
+            </div>
+            <label class="stacked">Mood for <span id="mood-date-label" class="muted"></span>
+              <select id="mood-select" aria-label="Select mood">
+                <option value="1">😞 1 - Low</option>
+                <option value="2">😐 2 - Flat</option>
+                <option value="3">🙂 3 - Okay</option>
+                <option value="4">😃 4 - Good</option>
+                <option value="5">🤩 5 - Great</option>
+              </select>
+            </label>
+            <div class="row wrap mood-actions">
+              <button type="button" class="primary" id="save-mood">Save mood</button>
+              <span class="badge" id="mood-status">Not saved</span>
+            </div>
+          </div>
         </section>
 
         <button type="button" class="cta-chip hidden" id="notes-cta">Open notes</button>
