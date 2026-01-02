@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Robert's 2026 Habit Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-page="home">
+  <section class="card auth-card" id="auth-panel">
+    <div class="brand compact">
+      <div class="dot mini" aria-hidden="true"></div>
+      <div>
+        <p class="eyebrow">Welcome</p>
+        <h1>Sync your habits</h1>
+      </div>
+    </div>
+    <p class="muted">Securely sign in to sync with Firebase Authentication and Firestore.</p>
+    <div class="auth-grid">
+      <form id="signup-form" class="stack auth-form" aria-label="Sign up">
+        <h3>Create account</h3>
+        <label class="stacked">Email
+          <input id="signup-email" type="email" required autocomplete="email" />
+        </label>
+        <label class="stacked">Password
+          <input id="signup-password" type="password" required autocomplete="new-password" />
+        </label>
+        <button type="submit" class="primary full-width">Sign up</button>
+      </form>
+      <form id="signin-form" class="stack auth-form" aria-label="Sign in">
+        <h3>Sign in</h3>
+        <label class="stacked">Email
+          <input id="signin-email" type="email" required autocomplete="email" />
+        </label>
+        <label class="stacked">Password
+          <input id="signin-password" type="password" required autocomplete="current-password" />
+        </label>
+        <button type="submit" class="ghost full-width">Sign in</button>
+      </form>
+    </div>
+    <div class="row wrap auth-actions">
+      <button type="button" id="google-signin" class="ghost pill">Continue with Google</button>
+      <p class="muted" id="auth-message">Use email + password to create your account or sign back in.</p>
+    </div>
+  </section>
+
+  <div class="app-shell hidden" id="app-shell">
+    <header class="app-header" id="dashboard">
+      <div class="brand compact">
+        <div class="dot mini" aria-hidden="true"></div>
+        <div>
+          <h1 id="app-title">Habit Engine</h1>
+        </div>
+      </div>
+      <div class="nav-wrap">
+        <span id="user-badge" class="badge subtle hidden" aria-live="polite"></span>
+        <button id="logout-button" type="button" class="ghost pill hidden" aria-label="Logout">Logout</button>
+        <button id="settings-button-top" type="button" class="ghost pill" aria-label="Open settings">Settings</button>
+      </div>
+    </header>
+
+    <main class="content-area">
+      <section class="card wide-habits span-12 primary-focus" data-focus-visible data-section="habits" id="habits">
+        <header class="card-head habits-head">
+          <div>
+            <p class="eyebrow">Primary checklist</p>
+            <h3>Today&rsquo;s habits</h3>
+          </div>
+          <div class="row wrap habit-actions">
+            <label class="stacked skinny">Select day
+              <input type="date" id="habit-date" />
+            </label>
+            <button id="mark-all" type="button" class="ghost">Mark all done</button>
+          </div>
+        </header>
+        <div id="habit-list" class="list draggable-list"></div>
+        <p class="muted" id="empty-habits">Add habits in Settings to see them here.</p>
+      </section>
+
+      <section class="card topline span-4 progress-card row-span-2" id="progress">
+        <div class="summary-head">
+          <div>
+            <p class="eyebrow">System telemetry</p>
+            <h2 id="today-label"></h2>
+          </div>
+        </div>
+          <div class="meter-grid">
+            <div class="circle-stat">
+              <div class="circle-shell compact">
+                <svg id="progress-ring" viewBox="0 0 160 160" aria-label="Daily completion ring">
+                  <circle class="ring-bg" cx="80" cy="80" r="70" />
+                  <circle class="ring-fill" cx="80" cy="80" r="70" />
+                </svg>
+                <div class="ring-center">
+                  <div class="ring-number" id="progress-value" aria-live="polite">0%</div>
+                </div>
+              </div>
+              <p class="circle-label">Daily completion</p>
+              <p class="circle-sub" id="ring-subtext">0 of 0 habits</p>
+            </div>
+            <div class="circle-stat">
+              <div class="circle-shell compact streak-shell" id="streak-bar">
+                <svg id="streak-ring" viewBox="0 0 160 160" aria-label="Current streak ring">
+                  <circle class="ring-bg" cx="80" cy="80" r="70" />
+                  <circle class="ring-fill streak-fill" cx="80" cy="80" r="70" />
+                </svg>
+                <div class="ring-center">
+                  <div class="ring-number" id="streak" aria-live="polite">0d</div>
+                </div>
+              </div>
+              <p class="circle-label">Current streak</p>
+              <p class="circle-sub milestone-label">Next milestone: 7 days</p>
+            </div>
+          </div>
+          <div class="trend-panel">
+            <div>
+              <p class="stat-label">Momentum</p>
+              <p class="stat-value" id="momentum-value">Steady signal</p>
+              <p class="muted">7-day completion pulse</p>
+            </div>
+            <div class="micro-trend" aria-hidden="true">
+              <span style="height: 22%;"></span>
+              <span style="height: 38%;"></span>
+              <span style="height: 58%;"></span>
+              <span style="height: 46%;"></span>
+              <span style="height: 72%;"></span>
+              <span style="height: 64%;"></span>
+              <span style="height: 84%;"></span>
+            </div>
+          </div>
+          <div class="mood-inline row wrap" aria-label="Daily mood">
+            <span class="stat-label">Daily mood <span id="mood-date-label" class="muted"></span></span>
+            <select id="mood-select" aria-label="Select mood">
+              <option value="1">😞 1 - Low</option>
+              <option value="2">😐 2 - Flat</option>
+              <option value="3">🙂 3 - Okay</option>
+              <option value="4">😃 4 - Good</option>
+              <option value="5">🤩 5 - Great</option>
+            </select>
+            <button type="button" class="ghost" id="save-mood">Save</button>
+            <span class="badge" id="mood-status">Not saved</span>
+          </div>
+          <div class="summary-bar headline metrics-grid" aria-label="Dashboard summary">
+            <div class="summary-card">
+              <p class="stat-label">Habits</p>
+              <p class="stat-value" id="summary-habits">0</p>
+            </div>
+            <div class="summary-card">
+              <p class="stat-label">Current streak</p>
+              <p class="stat-value" id="summary-streak">0d</p>
+            </div>
+            <div class="summary-card">
+              <p class="stat-label">Longest streak</p>
+              <p class="stat-value" id="summary-longest">0d</p>
+            </div>
+            <div class="summary-card">
+              <p class="stat-label">Completion</p>
+              <p class="stat-value" id="summary-rate">0%</p>
+            </div>
+            <div class="summary-card subtle">
+              <p class="stat-label">Quick wins</p>
+              <p class="stat-value" id="summary-wins">0</p>
+            </div>
+            <div class="summary-card subtle">
+              <p class="stat-label">Goals tracked</p>
+              <p class="stat-value" id="summary-goals">0</p>
+            </div>
+          </div>
+        </section>
+
+        <div class="stack span-4 chart-stack" id="stats">
+          <section class="card weekly-card equal-height-card" data-focus-hidden data-section="weekly">
+            <header class="card-head">
+              <div>
+                <h3>Completion by day</h3>
+              </div>
+            </header>
+            <div id="weekly-bars" class="weekly-list" role="img" aria-label="Weekly completion chart"></div>
+            <div class="chart-axes" aria-hidden="true">
+              <span>0%</span><span>50%</span><span>100%</span>
+            </div>
+          </section>
+
+          <section class="card stable-card equal-height-card" data-focus-visible data-section="wins">
+            <header class="card-head">
+              <div>
+                <h3>Quick wins</h3>
+              </div>
+            </header>
+            <form id="task-form" class="quick-form" aria-label="Quick win entry">
+              <input id="task-input" type="text" placeholder="Log a quick win" required aria-label="Quick win text" />
+              <button type="submit" class="primary">Add</button>
+            </form>
+            <div id="task-list" class="list quick-win-list scroll-area"></div>
+            <div class="row between quick-footer">
+              <p class="muted" id="task-count"></p>
+            </div>
+          </section>
+        </div>
+
+        <div class="stack span-4 secondary-stack">
+          <section class="card monthly-card equal-height-card" data-focus-hidden data-section="monthly">
+            <header class="card-head">
+              <div>
+                <h3>Calendar intensity</h3>
+              </div>
+            </header>
+            <div class="heatmap-wrap">
+              <div class="calendar-head">
+                <div class="calendar-controls">
+                  <label class="stacked">Habit filter
+                    <select id="heatmap-filter" aria-label="Heatmap habit filter">
+                      <option value="all">All</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="weekday-labels" aria-hidden="true">
+                <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+              </div>
+              <div id="monthly-strip" class="calendar-grid" role="grid" aria-label="Calendar heatmap"></div>
+              <div class="calendar-footer">
+                <div class="month-nav">
+                  <button type="button" class="ghost icon-button" id="prev-month" aria-label="Previous month">◀</button>
+                  <div class="calendar-month" id="calendar-month" aria-live="polite"></div>
+                  <button type="button" class="ghost icon-button" id="next-month" aria-label="Next month">▶</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card stable-card equal-height-card" data-focus-visible data-section="goals" id="goals">
+            <header class="card-head">
+              <div>
+                <h3>Annual goals</h3>
+              </div>
+            </header>
+            <div class="goal-status grid two-col">
+              <div class="stack">
+                <div id="goal-list" class="goal-list scroll-area" aria-live="polite"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card stable-card equal-height-card" data-focus-visible data-section="insights" id="insights-card">
+            <header class="card-head">
+              <div>
+                <h3>Insights</h3>
+              </div>
+            </header>
+            <div id="insights-body" class="insight-list" aria-live="polite"></div>
+          </section>
+        </div>
+
+        <section class="card span-4 stable-card equal-height-card" id="pie-card" data-section="insights">
+          <header class="card-head">
+            <div>
+              <h3>Completion pie</h3>
+            </div>
+          </header>
+          <div class="grid two-col">
+            <label class="stacked">Habit
+              <select id="pie-habit" aria-label="Habit selector"></select>
+            </label>
+            <label class="stacked">Timeframe
+              <select id="pie-range" aria-label="Timeframe selector">
+                <option value="14">Last 2 weeks</option>
+                <option value="28">Last 4 weeks</option>
+                <option value="84">Last 12 weeks</option>
+                <option value="182">Last 6 months</option>
+              </select>
+            </label>
+          </div>
+          <div class="donut-wrap">
+            <div class="donut" id="pie-visual" aria-label="Completion pie chart"></div>
+            <div class="donut-center">
+              <div id="pie-count">0/0</div>
+              <small id="pie-percent">0%</small>
+            </div>
+          </div>
+        </section>
+
+        <button type="button" class="cta-chip hidden" id="notes-cta">Open notes</button>
+        <section class="card journal-card span-12" data-focus-hidden data-section="journal" id="journal">
+          <header class="card-head">
+            <div>
+              <h3>Notes</h3>
+            </div>
+          </header>
+          <div class="tab-head" role="tablist">
+            <button type="button" class="tab active" data-tab="reflection" aria-controls="journal-body">Daily reflection</button>
+            <button type="button" class="tab" data-tab="dreams" aria-controls="dream-body">Dream journal</button>
+            <button type="button" class="tab" data-tab="ideas" aria-controls="idea-body">Ideas</button>
+          </div>
+          <div class="tab-body" id="journal-body" data-tab-panel="reflection">
+            <form id="journal-form" class="stack">
+              <input id="journal-title" type="text" placeholder="Title" aria-label="Journal title" />
+              <textarea id="journal-text" rows="5" placeholder="What worked, what didn&rsquo;t?" required aria-label="Journal entry"></textarea>
+              <div class="row end">
+                <span class="muted" id="journal-saved">Unsaved</span>
+                <button type="submit" class="primary">Save entry</button>
+              </div>
+            </form>
+            <div id="journal-list" class="list scroll-area"></div>
+          </div>
+          <div class="tab-body hidden" id="dream-body" data-tab-panel="dreams">
+            <form id="dream-form" class="stack">
+              <input id="dream-title" type="text" placeholder="Dream headline" aria-label="Dream title" />
+              <textarea id="dream-text" rows="5" placeholder="Did you dream? Capture a line or two." required aria-label="Dream entry"></textarea>
+              <div class="row end">
+                <span class="muted" id="dream-saved">Unsaved</span>
+                <button type="submit" class="primary">Save dream</button>
+              </div>
+            </form>
+            <div id="dream-list" class="list scroll-area"></div>
+          </div>
+          <div class="tab-body hidden" id="idea-body" data-tab-panel="ideas">
+            <form id="idea-form" class="stack">
+              <input id="idea-title" type="text" placeholder="Idea headline" aria-label="Idea title" />
+              <textarea id="idea-text" rows="4" placeholder="Capture a quick idea before it fades." required aria-label="Idea entry"></textarea>
+              <div class="row end">
+                <span class="muted" id="idea-saved">Unsaved</span>
+                <button type="submit" class="primary">Save idea</button>
+              </div>
+            </form>
+            <div id="idea-list" class="list scroll-area"></div>
+          </div>
+        </section>
+
+        <section class="card quit-banner span-12" data-section="quit" id="quit-banner">
+          <header class="card-head">
+            <div>
+              <h3>Quit tracker</h3>
+            </div>
+          </header>
+          <div class="quit-strip" id="quit-strip"></div>
+          <p class="muted" id="empty-quit-banner">No retired habits yet.</p>
+        </section>
+
+        <section class="card history-card span-12" data-focus-hidden data-section="history">
+          <header class="card-head">
+            <div>
+              <h3>Long view</h3>
+            </div>
+            <div class="row wrap">
+              <button type="button" id="history-toggle" class="ghost">Expand year view</button>
+              <label class="stacked">View
+                <select id="history-mode" aria-label="History mode">
+                  <option value="year">Year</option>
+                  <option value="month">Month</option>
+                </select>
+              </label>
+              <label class="stacked" for="year-picker">Year
+                <select id="year-picker" aria-label="Year picker"></select>
+              </label>
+            </div>
+          </header>
+          <div id="history" class="history-grid collapsed"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="settings-modal">
+    <div class="modal-head">
+      <div>
+        <h3>Settings</h3>
+      </div>
+      <button id="close-settings" type="button" class="ghost">Close</button>
+    </div>
+    <div class="stack">
+      <label class="stacked">Rename engine
+        <input id="title-input" type="text" />
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="theme-toggle" />
+        <span>Light mode</span>
+      </label>
+      <label class="stacked">Accent mood
+        <select id="accent-picker">
+          <option value="violet">Violet</option>
+          <option value="mint">Mint</option>
+          <option value="amber">Amber</option>
+        </select>
+      </label>
+      <div class="stack">
+        <p class="eyebrow">Visibility</p>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="weekly" />
+          <span>Hide weekly view</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="monthly" />
+          <span>Hide monthly strip</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="history" />
+          <span>Hide year &amp; month view</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="journal" />
+          <span>Hide journal</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" data-section-toggle value="quit" />
+          <span>Hide quit tracker</span>
+        </label>
+      </div>
+      <div class="stack settings-grid">
+        <section class="panelish">
+          <p class="eyebrow">Data</p>
+          <div class="row wrap">
+            <input type="file" id="import-file" accept=".json,.csv" class="hidden" />
+            <button type="button" id="import-json" class="ghost" aria-label="Import JSON">Import JSON</button>
+            <button type="button" id="import-csv" class="ghost" aria-label="Import CSV">Import CSV</button>
+            <button type="button" id="export-data" class="ghost" aria-label="Export JSON">Export JSON</button>
+            <button type="button" id="export-csv" class="ghost" aria-label="Export CSV">Export CSV</button>
+          </div>
+        </section>
+        <section class="panelish">
+          <p class="eyebrow">Habit library</p>
+          <form id="habit-form" class="stack" aria-label="Habit builder">
+            <label class="stacked">Name
+              <input id="habit-input" type="text" placeholder="Name (Stretch, Write, Meditate)" required aria-label="Habit name" />
+            </label>
+            <div class="grid two-col">
+              <label class="stacked">Icon
+                <select id="habit-icon" aria-label="Habit icon">
+                  <option value="">None</option>
+                  <option value="🔥">🔥 Fire</option>
+                  <option value="✅">✅ Check</option>
+                  <option value="🌿">🌿 Calm</option>
+                  <option value="📚">📚 Study</option>
+                  <option value="💪">💪 Strength</option>
+                  <option value="🧘">🧘 Flow</option>
+                  <option value="🌅">🌅 Dawn</option>
+                  <option value="🎯">🎯 Focus</option>
+                  <option value="🏃">🏃 Move</option>
+                  <option value="☕">☕ Mindful sip</option>
+                </select>
+              </label>
+              <label class="stacked">Accent
+                <input id="habit-color" type="color" value="#5563ff" aria-label="Habit accent color" />
+              </label>
+            </div>
+            <label class="stacked">Cadence
+              <select id="habit-cadence" aria-label="Habit cadence">
+                <option value="daily">Every day</option>
+                <option value="weekdays">Weekdays</option>
+                <option value="custom">Specific days</option>
+              </select>
+            </label>
+            <div class="days" id="day-picker" aria-label="Pick specific days">
+              <label><input type="checkbox" value="0" />Sun</label>
+              <label><input type="checkbox" value="1" />Mon</label>
+              <label><input type="checkbox" value="2" />Tue</label>
+              <label><input type="checkbox" value="3" />Wed</label>
+              <label><input type="checkbox" value="4" />Thu</label>
+              <label><input type="checkbox" value="5" />Fri</label>
+              <label><input type="checkbox" value="6" />Sat</label>
+            </div>
+            <div class="row between">
+              <span class="muted" id="habit-edit-hint">Add to today&rsquo;s checklist</span>
+              <button type="submit" id="habit-submit" class="primary">Add habit</button>
+            </div>
+            <div id="library-list" class="list"></div>
+          </form>
+        </section>
+        <section class="panelish">
+          <p class="eyebrow">Annual goals</p>
+          <form id="goal-form" class="stack goal-form" aria-label="Goal entry">
+            <label class="stacked">Goal title
+              <input id="goal-input" type="text" placeholder="Ship 12 longform essays" required aria-label="Add goal" />
+            </label>
+            <button type="submit" class="primary">Save goal</button>
+          </form>
+          <div id="goal-manage-list" class="goal-list scroll-area" aria-live="polite"></div>
+        </section>
+        <section class="panelish">
+          <p class="eyebrow">Quit tracker</p>
+          <form id="quit-form" class="grid two-col" aria-label="Quit tracker form">
+            <label class="stacked">Habit name
+              <input id="quit-name" type="text" placeholder="No sugar drinks" required aria-label="Habit to quit" />
+            </label>
+            <label class="stacked">Quit date
+              <input id="quit-date" type="date" required aria-label="Quit date" />
+            </label>
+            <button type="submit" class="primary full-width">Record</button>
+          </form>
+          <div id="quit-manage-list" class="quit-list"></div>
+        </section>
+      </div>
+      <div class="row end">
+        <span class="muted">Full reset wipes everything</span>
+        <button id="reset-data" type="button" class="ghost danger">Reset data</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="day-detail">
+    <div class="modal-head">
+      <div>
+        <p class="eyebrow">Daily details</p>
+        <h3 id="detail-date"></h3>
+      </div>
+      <button id="close-detail" type="button" class="ghost">Close</button>
+    </div>
+    <div class="day-breakdown"></div>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
