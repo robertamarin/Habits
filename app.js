@@ -556,12 +556,15 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
         miniFill.style.opacity = checked ? '1' : '0.5';
         badge.textContent = checked ? 'Done' : 'Pending';
       };
-      input.addEventListener('change', () => {
+      input.addEventListener('change', async () => {
         day.habits[habit.id] = input.checked;
         saveState();
         renderProgress(true);
         renderHistory();
         updateState(input.checked);
+        if (currentUser) {
+          await toggleCompletionRemote(currentUser.uid, habit.id, date, input.checked);
+        }
       });
 
       const labels = document.createElement('div');
