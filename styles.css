@@ -136,9 +136,6 @@ body.auth-view {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 320px;
-  max-height: 560px;
-  overflow: hidden;
 }
 .stable-card > * { flex-shrink: 0; }
 .stable-card .list,
@@ -311,7 +308,29 @@ body.auth-view {
 .chart-axes { display: grid; grid-template-columns: repeat(3, 1fr); font-size: 12px; color: var(--muted); }
 
 .chart-stack .card { min-width: 260px; }
-.chart-stack, .secondary-stack { display: grid; grid-auto-rows: minmax(0, 1fr); gap: 16px; align-self: stretch; }
+.chart-stack, .secondary-stack {
+  display: grid;
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 16px;
+  align-self: stretch;
+}
+
+.dashboard-fixed { overflow: hidden; }
+#goals .goal-list { overflow: auto; padding-right: 4px; }
+
+@media (min-width: 1100px) {
+  .dashboard-fixed {
+    min-height: 320px;
+    max-height: 320px;
+    height: 320px;
+  }
+
+  #progress.dashboard-fixed {
+    min-height: 640px;
+    max-height: 640px;
+    height: 640px;
+  }
+}
 
 .calendar-head { display: flex; align-items: center; justify-content: flex-start; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
 .calendar-footer { display: flex; justify-content: center; padding-top: 8px; border-top: 1px solid var(--border); margin-top: 8px; }
@@ -381,6 +400,12 @@ body.auth-view {
 .chip { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-soft); color: var(--text); font-weight: 700; }
 
 .insight-list { display: grid; gap: 10px; }
+.stable-card .insight-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
 .insight-item { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel-soft); }
 .insight-item strong { display: block; margin-bottom: 4px; }
 .insight-item p { margin: 0; color: var(--muted); }
