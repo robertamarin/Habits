@@ -562,7 +562,11 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
         renderHistory();
         updateState(input.checked);
         if (currentUser) {
-          await toggleCompletionRemote(currentUser.uid, habit.id, date, input.checked);
+          try {
+            await toggleCompletionRemote(currentUser.uid, habit.id, date, input.checked);
+          } catch (e) {
+            console.warn('Failed to save habit completion to Firestore', e);
+          }
         }
         saveState();
       });
@@ -736,7 +740,13 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           if (dom.habitIcon) dom.habitIcon.value = '';
           if (dom.habitColor) dom.habitColor.value = '#5563ff';
         }
-        if (currentUser) await removeHabitRemote(currentUser.uid, habit.id);
+        if (currentUser) {
+          try {
+            await removeHabitRemote(currentUser.uid, habit.id);
+          } catch (e) {
+            console.warn('Failed to remove habit from Firestore', e);
+          }
+        }
         saveState();
         renderChecklist();
         renderLibrary();
@@ -2201,20 +2211,28 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           existing.icon = icon;
           existing.color = color;
           if (currentUser) {
-            await updateHabitRemote(currentUser.uid, existing.id, {
-              name,
-              cadence,
-              days,
-              icon,
-              color
-            });
+            try {
+              await updateHabitRemote(currentUser.uid, existing.id, {
+                name,
+                cadence,
+                days,
+                icon,
+                color
+              });
+            } catch (e) {
+              console.warn('Failed to update habit in Firestore', e);
+            }
           }
         }
       } else {
         const habit = { id: randomId(), name, cadence, days, icon, color, created: today() };
         state.habits.push(habit);
         if (currentUser) {
-          await addHabitRemote(currentUser.uid, name, habit);
+          try {
+            await addHabitRemote(currentUser.uid, name, habit);
+          } catch (e) {
+            console.warn('Failed to add habit to Firestore', e);
+          }
         }
       }
       dom.habitInput.value = '';
@@ -2267,7 +2285,11 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     renderMoodPicker();
     renderHistory();
     if (currentUser) {
-      await setMoodRemote(currentUser.uid, value, date);
+      try {
+        await setMoodRemote(currentUser.uid, value, date);
+      } catch (e) {
+        console.warn('Failed to save mood to Firestore', e);
+      }
     }
     saveState();
   };
@@ -2463,9 +2485,13 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       renderChecklist();
       renderHistory();
       if (currentUser) {
-        await Promise.all(
-          activeHabitsForDate(date).map((h) => toggleCompletionRemote(currentUser.uid, h.id, date, true))
-        );
+        try {
+          await Promise.all(
+            activeHabitsForDate(date).map((h) => toggleCompletionRemote(currentUser.uid, h.id, date, true))
+          );
+        } catch (e) {
+          console.warn('Failed to mark all habits as done in Firestore', e);
+        }
       }
       saveState();
     });
