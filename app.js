@@ -102,7 +102,14 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     });
   };
 
+  const ensureHabitIsActive = () => {
+    state.habits.forEach((habit) => {
+      if (habit.isActive === undefined) habit.isActive = true;
+    });
+  };
+
   seedHabitCreationDates();
+  ensureHabitIsActive();
 
   const hydrateFromRemote = (payload = {}) => {
     const todayKeyValue = today();
@@ -114,7 +121,8 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       days: h.days || [],
       icon: h.icon || '',
       color: h.color || '#5563ff',
-      created: h.createdAt?.toDate ? dayKey(h.createdAt.toDate()) : dayKey(h.createdAt || h.created || todayKeyValue)
+      created: h.createdAt?.toDate ? dayKey(h.createdAt.toDate()) : dayKey(h.createdAt || h.created || todayKeyValue),
+      isActive: h.isActive !== undefined ? h.isActive : true
     }));
     // Merge today's day document
     const completions = day.completions || {};
@@ -157,6 +165,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     normalizeDayKeys();
     normalizeMoodKeys();
     seedHabitCreationDates();
+    ensureHabitIsActive();
     renderTitle();
     applyTheme();
     applyAccent();
@@ -2208,7 +2217,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           }
         }
       } else {
-        const habit = { id: randomId(), name, cadence, days, icon, color, created: today() };
+        const habit = { id: randomId(), name, cadence, days, icon, color, created: today(), isActive: true };
         state.habits.push(habit);
         if (currentUser) {
           await addHabitRemote(currentUser.uid, name, habit);
