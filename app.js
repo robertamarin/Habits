@@ -263,7 +263,6 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     journalCard: document.querySelector('.journal-card'),
     notesCta: document.getElementById('notes-cta'),
     habitDate: document.getElementById('habit-date'),
-    moodQuick: document.getElementById('mood-quick'),
     authPanel: document.getElementById('auth-panel'),
     appShell: document.getElementById('app-shell'),
     signupForm: document.getElementById('signup-form'),
@@ -275,7 +274,8 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     googleSignin: document.getElementById('google-signin'),
     authMessage: document.getElementById('auth-message'),
     logoutButton: document.getElementById('logout-button'),
-    userBadge: document.getElementById('user-badge')
+    userBadge: document.getElementById('user-badge'),
+    insightsBody: document.getElementById('insights-body')
   };
 
   const moodFaces = { 1: '😞', 2: '😐', 3: '🙂', 4: '😃', 5: '🤩' };
@@ -288,6 +288,9 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
   };
 
   let editingHabitId = null;
+  let editingJournalId = null;
+  let editingDreamId = null;
+  let editingIdeaId = null;
   let lastProgressPercent = 0;
   let historyExpanded = false;
   let currentUser = null;
@@ -295,12 +298,14 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
   const showAuthPanel = (message) => {
     if (dom.appShell) dom.appShell.classList.add('hidden');
     if (dom.authPanel) dom.authPanel.classList.remove('hidden');
+    document.body.classList.add('auth-view');
     if (dom.authMessage && message) dom.authMessage.textContent = message;
   };
 
   const showApp = (user) => {
     if (dom.authPanel) dom.authPanel.classList.add('hidden');
     if (dom.appShell) dom.appShell.classList.remove('hidden');
+    document.body.classList.remove('auth-view');
     if (dom.logoutButton) dom.logoutButton.classList.remove('hidden');
     if (dom.userBadge) {
       dom.userBadge.textContent = user?.email || 'Signed in';
@@ -427,15 +432,6 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     if (dom.moodStatus) {
       dom.moodStatus.textContent = saved ? `${moodFaces[saved] || '🙂'} ${moodLabels[saved]}` : 'Not saved';
       dom.moodStatus.classList.toggle('badge', Boolean(saved));
-    }
-    if (dom.moodQuick) {
-      const currentValue = Number(dom.moodSelect.value || '3');
-      dom.moodQuick.querySelectorAll('[data-mood-value]').forEach((button) => {
-        const value = Number(button.dataset.moodValue);
-        const active = currentValue === value;
-        button.classList.toggle('active', active);
-        button.setAttribute('aria-pressed', String(active));
-      });
     }
   };
 
@@ -627,6 +623,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       setTimeout(() => dom.winsPill && dom.winsPill.classList.remove('wins-pulse'), 260);
     }
     renderDashboardSummary();
+    renderInsights();
   };
 
   const renderLibrary = () => {
@@ -743,12 +740,33 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
         time.className = 'meta';
         time.textContent = new Date(entry.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'ghost';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => {
+          editingJournalId = entry.id;
+          dom.journalTitle.value = entry.title || '';
+          dom.journalText.value = entry.text || '';
+          const submit = dom.journalForm?.querySelector('button[type="submit"]');
+          if (submit) submit.textContent = 'Update entry';
+          if (dom.journalSaved) dom.journalSaved.textContent = 'Editing';
+          dom.journalText.focus();
+        });
+
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'ghost';
         remove.textContent = 'Delete';
         remove.addEventListener('click', async () => {
           day.journal = day.journal.filter((j) => j.id !== entry.id);
+          if (editingJournalId === entry.id) {
+            editingJournalId = null;
+            dom.journalTitle.value = '';
+            dom.journalText.value = '';
+            const submit = dom.journalForm?.querySelector('button[type="submit"]');
+            if (submit) submit.textContent = 'Save entry';
+          }
           saveState();
           if (currentUser?.uid) {
             try {
@@ -761,7 +779,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           renderHistory();
         });
 
-        item.append(content, time, remove);
+        item.append(content, time, edit, remove);
         dom.journalList.append(item);
       });
   };
@@ -794,12 +812,33 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
         time.className = 'meta';
         time.textContent = new Date(entry.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'ghost';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => {
+          editingDreamId = entry.id;
+          dom.dreamTitle.value = entry.title || '';
+          dom.dreamText.value = entry.text || '';
+          const submit = dom.dreamForm?.querySelector('button[type="submit"]');
+          if (submit) submit.textContent = 'Update dream';
+          if (dom.dreamSaved) dom.dreamSaved.textContent = 'Editing';
+          dom.dreamText.focus();
+        });
+
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'ghost';
         remove.textContent = 'Delete';
         remove.addEventListener('click', async () => {
           day.dreams = day.dreams.filter((j) => j.id !== entry.id);
+          if (editingDreamId === entry.id) {
+            editingDreamId = null;
+            dom.dreamTitle.value = '';
+            dom.dreamText.value = '';
+            const submit = dom.dreamForm?.querySelector('button[type="submit"]');
+            if (submit) submit.textContent = 'Save dream';
+          }
           saveState();
           if (currentUser?.uid) {
             try {
@@ -812,7 +851,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           renderHistory();
         });
 
-        item.append(content, time, remove);
+        item.append(content, time, edit, remove);
         dom.dreamList.append(item);
       });
   };
@@ -924,6 +963,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     renderWeekly();
     renderMonthly();
     renderDashboardSummary(percent, done, todayHabits.length, day.tasks.length);
+    renderInsights();
     renderCompletionPie();
   };
 
@@ -1283,12 +1323,33 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
         time.className = 'meta';
         time.textContent = new Date(entry.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'ghost';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => {
+          editingIdeaId = entry.id;
+          dom.ideaTitle.value = entry.title || '';
+          dom.ideaText.value = entry.text || '';
+          const submit = dom.ideaForm?.querySelector('button[type="submit"]');
+          if (submit) submit.textContent = 'Update idea';
+          if (dom.ideaSaved) dom.ideaSaved.textContent = 'Editing';
+          dom.ideaText.focus();
+        });
+
         const remove = document.createElement('button');
         remove.type = 'button';
         remove.className = 'ghost';
         remove.textContent = 'Delete';
         remove.addEventListener('click', async () => {
           day.ideas = day.ideas.filter((j) => j.id !== entry.id);
+          if (editingIdeaId === entry.id) {
+            editingIdeaId = null;
+            dom.ideaTitle.value = '';
+            dom.ideaText.value = '';
+            const submit = dom.ideaForm?.querySelector('button[type="submit"]');
+            if (submit) submit.textContent = 'Save idea';
+          }
           saveState();
           if (currentUser?.uid) {
             try {
@@ -1301,7 +1362,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           renderHistory();
         });
 
-        item.append(content, time, remove);
+        item.append(content, time, edit, remove);
         dom.ideaList.append(item);
       });
   };
@@ -1479,6 +1540,8 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       left.append(name, meta);
 
       if (allowReset) {
+        const actions = document.createElement('div');
+        actions.className = 'row';
         const reset = document.createElement('button');
         reset.type = 'button';
         reset.textContent = 'Reset';
@@ -1495,7 +1558,25 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
           }
           renderQuitList();
         });
-        row.append(left, reset);
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'ghost';
+        remove.textContent = 'Delete';
+        remove.addEventListener('click', async () => {
+          if (!confirm('Delete this quit habit?')) return;
+          state.quits = state.quits.filter((item) => item.id !== quit.id);
+          saveState();
+          if (currentUser?.uid) {
+            try {
+              await removeQuitRemote(currentUser.uid, quit.id);
+            } catch (e) {
+              console.warn('Failed to delete quit habit in Firestore', e);
+            }
+          }
+          renderQuitList();
+        });
+        actions.append(reset, remove);
+        row.append(left, actions);
       } else {
         row.append(left);
       }
@@ -1627,6 +1708,90 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     }
 
     renderDashboardSummary();
+    renderInsights();
+  };
+
+  const renderInsights = () => {
+    if (!dom.insightsBody) return;
+    const insights = [];
+    const last7 = dateKeysBack(7).reverse();
+    const prev7 = dateKeysBack(14).slice(7).reverse();
+    const averageCompletion = (dates) => {
+      const values = dates.map((date) => dayCompletion(date)).filter((value) => value !== null);
+      if (!values.length) return null;
+      return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+    };
+    const recentAvg = averageCompletion(last7);
+    const prevAvg = averageCompletion(prev7);
+    if (recentAvg !== null) {
+      const trend = prevAvg !== null ? recentAvg - prevAvg : 0;
+      const trendLabel = prevAvg === null ? 'New baseline' : `${trend >= 0 ? '+' : ''}${trend}% vs prior week`;
+      insights.push({
+        title: 'Weekly completion',
+        body: `${recentAvg}% average • ${trendLabel}`
+      });
+    }
+
+    const streakCount = computeStreak();
+    if (streakCount > 0) {
+      insights.push({
+        title: 'Consistency streak',
+        body: `${streakCount} day${streakCount === 1 ? '' : 's'} active with full completion.`
+      });
+    }
+
+    const winCount = last7.reduce((sum, date) => sum + (state.days[date]?.tasks?.length || 0), 0);
+    if (winCount) {
+      insights.push({
+        title: 'Quick wins momentum',
+        body: `${winCount} wins logged in the last 7 days.`
+      });
+    }
+
+    if (state.habits.length) {
+      const habitScores = state.habits.map((habit) => {
+        const history = habitHistory(habit, 14);
+        const valid = history.filter((v) => v !== null);
+        const total = valid.length;
+        const done = valid.filter(Boolean).length;
+        return { habit, total, done };
+      }).filter((h) => h.total > 0);
+      if (habitScores.length) {
+        habitScores.sort((a, b) => (b.done / b.total) - (a.done / a.total));
+        const top = habitScores[0];
+        const rate = Math.round((top.done / top.total) * 100);
+        insights.push({
+          title: 'Top habit',
+          body: `${top.habit.name} at ${rate}% over the last 14 days.`
+        });
+      }
+    }
+
+    const moodEntries = last7.map((date) => state.mood[date]).filter(Boolean);
+    if (moodEntries.length) {
+      const avg = moodEntries.reduce((sum, value) => sum + value, 0) / moodEntries.length;
+      const rounded = Math.round(avg);
+      insights.push({
+        title: 'Mood trend',
+        body: `Average mood ${rounded}/5 (${moodLabels[rounded] || 'Okay'}).`
+      });
+    }
+
+    dom.insightsBody.innerHTML = '';
+    if (!insights.length) {
+      dom.insightsBody.innerHTML = '<div class="empty">Log habits and wins to unlock insights.</div>';
+      return;
+    }
+    insights.slice(0, 3).forEach((insight) => {
+      const item = document.createElement('div');
+      item.className = 'insight-item';
+      const title = document.createElement('strong');
+      title.textContent = insight.title;
+      const body = document.createElement('p');
+      body.textContent = insight.body;
+      item.append(title, body);
+      dom.insightsBody.append(item);
+    });
   };
 
   const renderDashboardSummary = (todayPercent, done = null, total = null, wins = null) => {
@@ -1698,6 +1863,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     renderIdeas();
     renderQuitList();
     renderGoals();
+    renderInsights();
     renderHistory();
     renderMoodPicker();
     renderProgress();
@@ -1820,13 +1986,12 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
   if (dom.saveMood && dom.moodSelect) {
     dom.saveMood.addEventListener('click', saveMoodForDay);
   }
-  if (dom.moodQuick) {
-    dom.moodQuick.querySelectorAll('[data-mood-value]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const value = Number(button.dataset.moodValue);
-        if (dom.moodSelect) dom.moodSelect.value = String(value);
-        saveMoodForDay();
-      });
+  if (dom.moodSelect) {
+    dom.moodSelect.addEventListener('change', () => {
+      if (dom.moodStatus) {
+        dom.moodStatus.textContent = 'Not saved';
+        dom.moodStatus.classList.remove('badge');
+      }
     });
   }
 
@@ -2126,16 +2291,28 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       event.preventDefault();
       const text = dom.journalText.value.trim();
       if (!text) return;
-      const entry = {
-        id: randomId(),
-        title: dom.journalTitle.value.trim(),
-        text,
-        created: Date.now()
-      };
       const day = getDay(today());
-      day.journal.push(entry);
+      if (editingJournalId) {
+        const existing = day.journal.find((item) => item.id === editingJournalId);
+        if (existing) {
+          existing.title = dom.journalTitle.value.trim();
+          existing.text = text;
+          existing.updated = Date.now();
+        }
+      } else {
+        const entry = {
+          id: randomId(),
+          title: dom.journalTitle.value.trim(),
+          text,
+          created: Date.now()
+        };
+        day.journal.push(entry);
+      }
       dom.journalTitle.value = '';
       dom.journalText.value = '';
+      editingJournalId = null;
+      const submit = dom.journalForm?.querySelector('button[type="submit"]');
+      if (submit) submit.textContent = 'Save entry';
       if (dom.journalSaved) dom.journalSaved.textContent = 'Saved';
       saveState();
       if (currentUser?.uid) {
@@ -2155,16 +2332,28 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       event.preventDefault();
       const text = dom.dreamText.value.trim();
       if (!text) return;
-      const entry = {
-        id: randomId(),
-        title: dom.dreamTitle.value.trim(),
-        text,
-        created: Date.now()
-      };
       const day = getDay(today());
-      day.dreams.push(entry);
+      if (editingDreamId) {
+        const existing = day.dreams.find((item) => item.id === editingDreamId);
+        if (existing) {
+          existing.title = dom.dreamTitle.value.trim();
+          existing.text = text;
+          existing.updated = Date.now();
+        }
+      } else {
+        const entry = {
+          id: randomId(),
+          title: dom.dreamTitle.value.trim(),
+          text,
+          created: Date.now()
+        };
+        day.dreams.push(entry);
+      }
       dom.dreamTitle.value = '';
       dom.dreamText.value = '';
+      editingDreamId = null;
+      const submit = dom.dreamForm?.querySelector('button[type="submit"]');
+      if (submit) submit.textContent = 'Save dream';
       if (dom.dreamSaved) dom.dreamSaved.textContent = 'Saved';
       saveState();
       if (currentUser?.uid) {
@@ -2184,16 +2373,28 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       event.preventDefault();
       const text = dom.ideaText.value.trim();
       if (!text) return;
-      const entry = {
-        id: randomId(),
-        title: dom.ideaTitle.value.trim(),
-        text,
-        created: Date.now()
-      };
       const day = getDay(today());
-      day.ideas.push(entry);
+      if (editingIdeaId) {
+        const existing = day.ideas.find((item) => item.id === editingIdeaId);
+        if (existing) {
+          existing.title = dom.ideaTitle.value.trim();
+          existing.text = text;
+          existing.updated = Date.now();
+        }
+      } else {
+        const entry = {
+          id: randomId(),
+          title: dom.ideaTitle.value.trim(),
+          text,
+          created: Date.now()
+        };
+        day.ideas.push(entry);
+      }
       dom.ideaTitle.value = '';
       dom.ideaText.value = '';
+      editingIdeaId = null;
+      const submit = dom.ideaForm?.querySelector('button[type="submit"]');
+      if (submit) submit.textContent = 'Save idea';
       if (dom.ideaSaved) dom.ideaSaved.textContent = 'Saved';
       saveState();
       if (currentUser?.uid) {

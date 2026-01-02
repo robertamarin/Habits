@@ -63,16 +63,6 @@
     </header>
 
     <main class="content-area">
-      <section class="card quit-banner span-12" data-section="quit" id="quit-banner">
-        <header class="card-head">
-          <div>
-            <h3>Quit tracker</h3>
-          </div>
-        </header>
-        <div class="quit-strip" id="quit-strip"></div>
-        <p class="muted" id="empty-quit-banner">No retired habits yet.</p>
-      </section>
-
       <section class="card wide-habits span-12 primary-focus" data-focus-visible data-section="habits" id="habits">
         <header class="card-head habits-head">
           <div>
@@ -141,6 +131,18 @@
               <span style="height: 84%;"></span>
             </div>
           </div>
+          <div class="mood-inline row wrap" aria-label="Daily mood">
+            <span class="stat-label">Daily mood <span id="mood-date-label" class="muted"></span></span>
+            <select id="mood-select" aria-label="Select mood">
+              <option value="1">😞 1 - Low</option>
+              <option value="2">😐 2 - Flat</option>
+              <option value="3">🙂 3 - Okay</option>
+              <option value="4">😃 4 - Good</option>
+              <option value="5">🤩 5 - Great</option>
+            </select>
+            <button type="button" class="ghost" id="save-mood">Save</button>
+            <span class="badge" id="mood-status">Not saved</span>
+          </div>
           <div class="summary-bar headline metrics-grid" aria-label="Dashboard summary">
             <div class="summary-card">
               <p class="stat-label">Habits</p>
@@ -182,6 +184,24 @@
             </div>
           </section>
 
+          <section class="card stable-card" data-focus-visible data-section="wins">
+            <header class="card-head">
+              <div>
+                <h3>Quick wins</h3>
+              </div>
+            </header>
+            <form id="task-form" class="quick-form" aria-label="Quick win entry">
+              <input id="task-input" type="text" placeholder="Log a quick win" required aria-label="Quick win text" />
+              <button type="submit" class="primary">Add</button>
+            </form>
+            <div id="task-list" class="list quick-win-list scroll-area"></div>
+            <div class="row between quick-footer">
+              <p class="muted" id="task-count"></p>
+            </div>
+          </section>
+        </div>
+
+        <div class="stack span-4 secondary-stack">
           <section class="card monthly-card" data-focus-hidden data-section="monthly">
             <header class="card-head">
               <div>
@@ -211,24 +231,6 @@
               </div>
             </div>
           </section>
-        </div>
-
-        <div class="stack span-4 secondary-stack">
-          <section class="card stable-card" data-focus-visible data-section="wins">
-            <header class="card-head">
-              <div>
-                <h3>Quick wins</h3>
-              </div>
-            </header>
-            <form id="task-form" class="quick-form" aria-label="Quick win entry">
-              <input id="task-input" type="text" placeholder="Log a quick win" required aria-label="Quick win text" />
-              <button type="submit" class="primary">Add</button>
-            </form>
-            <div id="task-list" class="list quick-win-list scroll-area"></div>
-            <div class="row between quick-footer">
-              <p class="muted" id="task-count"></p>
-            </div>
-          </section>
 
           <section class="card stable-card" data-focus-visible data-section="goals" id="goals">
             <header class="card-head">
@@ -241,6 +243,15 @@
                 <div id="goal-list" class="goal-list scroll-area" aria-live="polite"></div>
               </div>
             </div>
+          </section>
+
+          <section class="card stable-card" data-focus-visible data-section="insights" id="insights-card">
+            <header class="card-head">
+              <div>
+                <h3>Insights</h3>
+              </div>
+            </header>
+            <div id="insights-body" class="insight-list" aria-live="polite"></div>
           </section>
         </div>
 
@@ -268,36 +279,6 @@
             <div class="donut-center">
               <div id="pie-count">0/0</div>
               <small id="pie-percent">0%</small>
-            </div>
-          </div>
-        </section>
-
-        <section class="card span-4 stable-card compact-card" id="mood-card" data-section="mood">
-          <header class="card-head">
-            <div>
-              <h3>Daily mood</h3>
-            </div>
-          </header>
-          <div class="stack">
-            <div class="mood-quick" id="mood-quick" aria-label="Quick mood tracker">
-              <button type="button" class="ghost mood-chip" data-mood-value="1">😞 Low</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="2">😐 Flat</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="3">🙂 Okay</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="4">😃 Good</button>
-              <button type="button" class="ghost mood-chip" data-mood-value="5">🤩 Great</button>
-            </div>
-            <label class="stacked">Mood for <span id="mood-date-label" class="muted"></span>
-              <select id="mood-select" aria-label="Select mood">
-                <option value="1">😞 1 - Low</option>
-                <option value="2">😐 2 - Flat</option>
-                <option value="3">🙂 3 - Okay</option>
-                <option value="4">😃 4 - Good</option>
-                <option value="5">🤩 5 - Great</option>
-              </select>
-            </label>
-            <div class="row wrap mood-actions">
-              <button type="button" class="primary" id="save-mood">Save mood</button>
-              <span class="badge" id="mood-status">Not saved</span>
             </div>
           </div>
         </section>
@@ -347,6 +328,16 @@
             </form>
             <div id="idea-list" class="list scroll-area"></div>
           </div>
+        </section>
+
+        <section class="card quit-banner span-12" data-section="quit" id="quit-banner">
+          <header class="card-head">
+            <div>
+              <h3>Quit tracker</h3>
+            </div>
+          </header>
+          <div class="quit-strip" id="quit-strip"></div>
+          <p class="muted" id="empty-quit-banner">No retired habits yet.</p>
         </section>
 
         <section class="card history-card span-12" data-focus-hidden data-section="history">
