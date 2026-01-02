@@ -171,89 +171,44 @@
           </div>
         </section>
 
-        <div class="stack span-4 chart-stack" id="stats">
-          <section class="card weekly-card equal-height-card" data-focus-hidden data-section="weekly">
-            <header class="card-head">
-              <div>
-                <h3>Completion by day</h3>
-              </div>
-            </header>
-            <div id="weekly-bars" class="weekly-list" role="img" aria-label="Weekly completion chart"></div>
-            <div class="chart-axes" aria-hidden="true">
-              <span>0%</span><span>50%</span><span>100%</span>
+        <section class="card span-4 monthly-card equal-height-card" data-focus-hidden data-section="monthly">
+          <header class="card-head">
+            <div>
+              <h3>Calendar intensity</h3>
             </div>
-          </section>
-
-          <section class="card stable-card equal-height-card" data-focus-visible data-section="wins">
-            <header class="card-head">
-              <div>
-                <h3>Quick wins</h3>
-              </div>
-            </header>
-            <form id="task-form" class="quick-form" aria-label="Quick win entry">
-              <input id="task-input" type="text" placeholder="Log a quick win" required aria-label="Quick win text" />
-              <button type="submit" class="primary">Add</button>
-            </form>
-            <div id="task-list" class="list quick-win-list scroll-area"></div>
-            <div class="row between quick-footer">
-              <p class="muted" id="task-count"></p>
-            </div>
-          </section>
-        </div>
-
-        <div class="stack span-4 secondary-stack">
-          <section class="card monthly-card equal-height-card" data-focus-hidden data-section="monthly">
-            <header class="card-head">
-              <div>
-                <h3>Calendar intensity</h3>
-              </div>
-            </header>
-            <div class="heatmap-wrap">
-              <div class="calendar-head">
-                <div class="calendar-controls">
-                  <label class="stacked">Habit filter
-                    <select id="heatmap-filter" aria-label="Heatmap habit filter">
-                      <option value="all">All</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-              <div class="weekday-labels" aria-hidden="true">
-                <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-              </div>
-              <div id="monthly-strip" class="calendar-grid" role="grid" aria-label="Calendar heatmap"></div>
-              <div class="calendar-footer">
-                <div class="month-nav">
-                  <button type="button" class="ghost icon-button" id="prev-month" aria-label="Previous month">◀</button>
-                  <div class="calendar-month" id="calendar-month" aria-live="polite"></div>
-                  <button type="button" class="ghost icon-button" id="next-month" aria-label="Next month">▶</button>
-                </div>
+          </header>
+          <div class="heatmap-wrap">
+            <div class="calendar-head">
+              <div class="calendar-controls">
+                <label class="stacked">Habit filter
+                  <select id="heatmap-filter" aria-label="Heatmap habit filter">
+                    <option value="all">All</option>
+                  </select>
+                </label>
               </div>
             </div>
-          </section>
-
-          <section class="card stable-card equal-height-card" data-focus-visible data-section="goals" id="goals">
-            <header class="card-head">
-              <div>
-                <h3>Annual goals</h3>
-              </div>
-            </header>
-            <div class="goal-status grid two-col">
-              <div class="stack">
-                <div id="goal-list" class="goal-list scroll-area" aria-live="polite"></div>
+            <div class="weekday-labels" aria-hidden="true">
+              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+            </div>
+            <div id="monthly-strip" class="calendar-grid" role="grid" aria-label="Calendar heatmap"></div>
+            <div class="calendar-footer">
+              <div class="month-nav">
+                <button type="button" class="ghost icon-button" id="prev-month" aria-label="Previous month">◀</button>
+                <div class="calendar-month" id="calendar-month" aria-live="polite"></div>
+                <button type="button" class="ghost icon-button" id="next-month" aria-label="Next month">▶</button>
               </div>
             </div>
-          </section>
+          </div>
+        </section>
 
-          <section class="card stable-card equal-height-card" data-focus-visible data-section="insights" id="insights-card">
-            <header class="card-head">
-              <div>
-                <h3>Insights</h3>
-              </div>
-            </header>
-            <div id="insights-body" class="insight-list" aria-live="polite"></div>
-          </section>
-        </div>
+        <section class="card span-4 stable-card equal-height-card" data-focus-visible data-section="insights" id="insights-card">
+          <header class="card-head">
+            <div>
+              <h3>Insights</h3>
+            </div>
+          </header>
+          <div id="insights-body" class="insight-list" aria-live="polite"></div>
+        </section>
 
         <section class="card span-4 stable-card equal-height-card" id="pie-card" data-section="insights">
           <header class="card-head">
@@ -280,6 +235,47 @@
               <div id="pie-count">0/0</div>
               <small id="pie-percent">0%</small>
             </div>
+          </div>
+        </section>
+
+        <section class="card span-4 stable-card equal-height-card" data-focus-visible data-section="wins">
+          <header class="card-head">
+            <div>
+              <h3>Quick wins</h3>
+            </div>
+          </header>
+          <form id="task-form" class="quick-form" aria-label="Quick win entry">
+            <input id="task-input" type="text" placeholder="Log a quick win" required aria-label="Quick win text" />
+            <button type="submit" class="primary">Add</button>
+          </form>
+          <div id="task-list" class="list quick-win-list scroll-area"></div>
+          <div class="row between quick-footer">
+            <p class="muted" id="task-count"></p>
+          </div>
+        </section>
+
+        <section class="card span-4 stable-card equal-height-card" data-focus-visible data-section="goals" id="goals">
+          <header class="card-head">
+            <div>
+              <h3>Annual goals</h3>
+            </div>
+          </header>
+          <div class="goal-status grid two-col">
+            <div class="stack">
+              <div id="goal-list" class="goal-list scroll-area" aria-live="polite"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card span-4 weekly-card equal-height-card" data-focus-hidden data-section="weekly">
+          <header class="card-head">
+            <div>
+              <h3>Completion by day</h3>
+            </div>
+          </header>
+          <div id="weekly-bars" class="weekly-list" role="img" aria-label="Weekly completion chart"></div>
+          <div class="chart-axes" aria-hidden="true">
+            <span>0%</span><span>50%</span><span>100%</span>
           </div>
         </section>
 
