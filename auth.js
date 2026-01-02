@@ -56,13 +56,24 @@ export function observeAuthState(onSignIn, onSignOut) {
 
       // Preload current-year days for year overview/heatmaps/pie ranges.
       // (Safe if empty; only reads what exists.)
-      const year = new Date().getFullYear();
-      const yearDays = await loadDaysRange(user.uid, `${year}-01-01`, `${year}-12-31`);
+      let yearDays = {};
+      try {
+        const year = new Date().getFullYear();
+        yearDays = await loadDaysRange(user.uid, `${year}-01-01`, `${year}-12-31`);
+      } catch (e) {
+        console.warn('Unable to load year overview from Firestore. Continuing without it.', e);
+      }
 
       onSignIn?.(user, { habits, goals, quits, day: todayData, yearDays });
     } catch (e) {
       console.warn('Auth succeeded, but Firestore load failed. Check Firestore rules/authorized domains.', e);
-      onSignIn?.(user, { habits: [], goals: [], quits: [], day: { completions: {}, mood: null, tasks: [], journal: [], dreams: [], ideas: [] }, yearDays: {} });
+      onSignIn?.(user, {
+        habits: [],
+        goals: [],
+        quits: [],
+        day: { completions: {}, mood: null, tasks: [], journal: [], dreams: [], ideas: [] },
+        yearDays: {}
+      });
     }
   });
 }
