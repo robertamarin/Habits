@@ -584,6 +584,108 @@ input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb
   * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
 
+@media (max-width: 720px) {
+  :root {
+    --equal-card-height: 340px;
+    --card-padding: 12px;
+  }
+
+  body { padding-bottom: 24px; }
+
+  .app-header {
+    padding: 12px 14px;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .brand h1 { font-size: 18px; }
+  .eyebrow { font-size: 10px; }
+
+  .nav-wrap {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .content-area {
+    width: min(680px, 94vw);
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .card {
+    gap: 8px;
+    border-radius: 14px;
+  }
+
+  .card-head { min-height: auto; }
+  .card-head h3 { font-size: 16px; }
+  .summary-head h2 { font-size: 20px; }
+
+  .metrics-grid { gap: 8px; }
+  .summary-card { min-height: 70px; padding: 10px; }
+  .stat-value { font-size: 20px; }
+
+  .meter-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .circle-shell { max-width: 132px; padding: 4px; }
+  .circle-shell.compact { max-width: 132px; }
+  #progress-ring, #streak-ring { width: 70%; height: 70%; }
+  .ring-number { font-size: 22px; }
+  .circle-label { font-size: 13px; }
+  .circle-sub { font-size: 12px; }
+
+  .trend-panel { grid-template-columns: 1fr; gap: 8px; }
+  .micro-trend { min-width: 0; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+
+  .mood-inline { gap: 8px; }
+  .mood-inline select { min-width: 140px; }
+  .mood-inline .badge { padding: 4px 8px; }
+
+  .quick-form { grid-template-columns: 1fr; gap: 8px; }
+  .quick-form button { width: 100%; }
+
+  .goal-status { grid-template-columns: 1fr; }
+  .grid.two-col { grid-template-columns: 1fr; }
+  .overview-grid, .meter-grid { align-items: stretch; }
+
+  .donut-wrap { width: 150px; }
+  .donut-center { font-size: 14px; }
+
+  .history-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .day-tile { padding: 8px; min-height: 72px; }
+  .day-tile strong { font-size: 12px; }
+  .day-tile .meta { font-size: 11px; }
+
+  .weekly-list { gap: 6px; }
+  .week-row { grid-template-columns: 46px 1fr auto; gap: 6px; }
+  .week-track { height: 12px; }
+
+  .journal-card { max-height: 480px; }
+  .tab-head {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    padding: 6px 8px;
+  }
+  .tab { padding: 8px 12px; }
+
+  button { min-height: 38px; padding: 8px 12px; }
+  button.icon-button { width: 38px; min-height: 38px; padding: 8px; }
+  input, select, textarea { padding: 8px 10px; }
+
+  .quit-banner { flex-direction: column; align-items: flex-start; gap: 8px; max-height: none; }
+  .quit-banner .quit-strip { margin-left: 0; width: 100%; }
+}
+
+@media (max-width: 480px) {
+  :root { --equal-card-height: 300px; }
+
+  .history-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .brand h1 { font-size: 17px; }
+  .summary-head h2 { font-size: 18px; }
+  .stat-value { font-size: 18px; }
+}
+
 .cta-chip { border: 1px dashed var(--border); background: var(--panel-soft); padding: 10px 12px; border-radius: var(--radius); color: var(--text); font-weight: 700; }
 
 .divider { height: 1px; background: var(--divider); margin: 8px 0; }
