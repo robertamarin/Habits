@@ -290,6 +290,7 @@
             <button type="button" class="tab active" data-tab="reflection" aria-controls="journal-body">Daily reflection</button>
             <button type="button" class="tab" data-tab="dreams" aria-controls="dream-body">Dream journal</button>
             <button type="button" class="tab" data-tab="ideas" aria-controls="idea-body">Ideas</button>
+            <button type="button" class="tab" data-tab="books" aria-controls="book-body">Books</button>
           </div>
           <div class="tab-body" id="journal-body" data-tab-panel="reflection">
             <form id="journal-form" class="stack">
@@ -323,6 +324,17 @@
               </div>
             </form>
             <div id="idea-list" class="list scroll-area"></div>
+          </div>
+          <div class="tab-body hidden" id="book-body" data-tab-panel="books">
+            <form id="book-form" class="stack">
+              <input id="book-title" type="text" placeholder="Book title" aria-label="Book title" required />
+              <textarea id="book-notes" rows="4" placeholder="Quick notes or takeaways" aria-label="Book notes"></textarea>
+              <div class="row end">
+                <span class="muted" id="book-saved">Unsaved</span>
+                <button type="submit" class="primary">Save book</button>
+              </div>
+            </form>
+            <div id="book-list" class="list scroll-area"></div>
           </div>
         </section>
 

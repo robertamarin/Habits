@@ -10,10 +10,11 @@
   --accent: #1d9bf0;
   --accent-strong: #1a8cd8;
   --accent-soft: #d7ecff;
-  --shadow: 0 12px 30px rgba(15, 20, 25, 0.08);
+  --shadow: 0 8px 24px rgba(15, 20, 25, 0.12);
   --radius: 16px;
   --card-padding: 14px;
   --equal-card-height: 480px;
+  --header-height: 72px;
 }
 
 [data-accent="mint"], [data-accent="amber"], [data-accent="violet"] {
@@ -60,19 +61,27 @@ body.auth-view {
     var(--bg);
 }
 
-.app-shell { display: flex; flex-direction: column; min-height: 100vh; }
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-top: calc(var(--header-height) + env(safe-area-inset-top));
+}
 .app-header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 10;
-  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
   border-bottom: 1px solid var(--divider);
-  padding: 16px 22px;
+  padding: calc(14px + env(safe-area-inset-top)) 24px 14px;
   display: grid;
   grid-template-columns: auto 1fr auto;
   gap: 12px;
   align-items: center;
   backdrop-filter: blur(14px);
+  box-shadow: 0 6px 18px rgba(15, 20, 25, 0.1);
 }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand h1 { margin: 0; font-size: 22px; letter-spacing: -0.02em; font-weight: 700; }
@@ -90,11 +99,11 @@ body.auth-view {
 
 .content-area {
   width: min(1680px, 96vw);
-  margin: 12px auto 20px;
+  margin: 8px auto 24px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   grid-auto-rows: minmax(0, auto);
-  gap: 12px;
+  gap: 16px;
   align-items: start;
 }
 .span-12 { grid-column: 1 / -1; margin-bottom: -8px; }
@@ -138,7 +147,7 @@ body.auth-view {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: var(--card-padding);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 18px rgba(15, 20, 25, 0.08);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -146,7 +155,7 @@ body.auth-view {
   overflow: hidden;
   transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
 }
-.card:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(15, 20, 25, 0.12); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.card:hover { transform: translateY(-2px); box-shadow: 0 14px 28px rgba(15, 20, 25, 0.12); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
 .card > * { position: relative; z-index: 1; }
 .equal-height-card {
   display: flex;
@@ -588,12 +597,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb
   :root {
     --equal-card-height: 340px;
     --card-padding: 12px;
+    --header-height: 76px;
   }
 
   body { padding-bottom: 24px; }
 
   .app-header {
-    padding: 12px 14px;
+    padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
     grid-template-columns: 1fr;
     gap: 8px;
   }
@@ -609,7 +619,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb
 
   .content-area {
     width: min(680px, 94vw);
-    gap: 10px;
+    gap: 12px;
     margin-top: 10px;
   }
 
@@ -678,7 +688,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid color-mix(in srgb
 }
 
 @media (max-width: 480px) {
-  :root { --equal-card-height: 300px; }
+  :root { --equal-card-height: 300px; --header-height: 72px; }
 
   .history-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .brand h1 { font-size: 17px; }

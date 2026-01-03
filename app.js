@@ -13,6 +13,9 @@ import {
   addQuit as addQuitRemote,
   updateQuit as updateQuitRemote,
   removeQuit as removeQuitRemote,
+  addBook as addBookRemote,
+  updateBook as updateBookRemote,
+  removeBook as removeBookRemote,
   resetUserData as resetUserDataRemote,
   setMood as setMoodRemote,
   toggleCompletion as toggleCompletionRemote,
@@ -32,6 +35,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     accent: 'violet',
     quits: [],
     goals: [],
+    books: [],
     currentYear: new Date().getFullYear(),
     hiddenSections: [],
     selectedDate: today(),
@@ -107,7 +111,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
 
   const hydrateFromRemote = (payload = {}) => {
     const todayKeyValue = today();
-    const { habits = [], day = {}, goals = [], quits = [], yearDays = {} } = payload;
+    const { habits = [], day = {}, goals = [], quits = [], books = [], yearDays = {} } = payload;
     state.habits = habits.map((h) => ({
       id: h.id,
       name: h.name,
@@ -131,6 +135,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     // Top-level lists
     state.goals = Array.isArray(goals) ? goals : [];
     state.quits = Array.isArray(quits) ? quits : [];
+    state.books = Array.isArray(books) ? books : [];
 
     // Year cache (optional): merge remote year days into local state.days so year view/pie charts work.
     Object.entries(yearDays || {}).forEach(([k, v]) => {
@@ -220,6 +225,11 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     ideaText: document.getElementById('idea-text'),
     ideaList: document.getElementById('idea-list'),
     ideaSaved: document.getElementById('idea-saved'),
+    bookForm: document.getElementById('book-form'),
+    bookTitle: document.getElementById('book-title'),
+    bookNotes: document.getElementById('book-notes'),
+    bookList: document.getElementById('book-list'),
+    bookSaved: document.getElementById('book-saved'),
     reset: document.getElementById('reset-data'),
     themeToggle: document.getElementById('theme-toggle'),
     history: document.getElementById('history'),
@@ -291,6 +301,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
   let editingJournalId = null;
   let editingDreamId = null;
   let editingIdeaId = null;
+  let editingBookId = null;
   let lastProgressPercent = 0;
   let historyExpanded = false;
   let currentUser = null;
@@ -993,6 +1004,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
 
   const renderCompletionPie = () => {
     if (!dom.pieVisual) return;
+    const selectedValue = dom.pieHabit?.value || 'all';
     if (dom.pieHabit) {
       dom.pieHabit.innerHTML = '';
       const allOption = document.createElement('option');
@@ -1015,7 +1027,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     }
 
     const fallbackHabitId = state.habits[0].id;
-    const currentValue = dom.pieHabit ? dom.pieHabit.value || 'all' : 'all';
+    const currentValue = dom.pieHabit ? selectedValue || 'all' : 'all';
     const validValue = currentValue === 'all' || state.habits.some((h) => h.id === currentValue)
       ? currentValue
       : fallbackHabitId;
@@ -1364,6 +1376,76 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
 
         item.append(content, time, edit, remove);
         dom.ideaList.append(item);
+      });
+  };
+
+  const renderBooks = () => {
+    if (!dom.bookList) return;
+    const books = Array.isArray(state.books) ? state.books : [];
+    if (dom.bookSaved) dom.bookSaved.textContent = books.length ? 'Saved' : 'Unsaved';
+    if (dom.bookSaved) dom.bookSaved.classList.toggle('badge', books.length > 0);
+    dom.bookList.innerHTML = '';
+    if (!books.length) {
+      dom.bookList.innerHTML = '<div class="empty">No books logged yet</div>';
+      return;
+    }
+    books
+      .slice()
+      .sort((a, b) => (b.created || 0) - (a.created || 0))
+      .forEach((entry) => {
+        const item = document.createElement('div');
+        item.className = 'journal-item';
+        const content = document.createElement('div');
+        const title = document.createElement('h4');
+        title.textContent = entry.title || 'Untitled book';
+        const text = document.createElement('p');
+        text.textContent = entry.notes || 'No notes yet';
+        content.append(title, text);
+
+        const time = document.createElement('span');
+        time.className = 'meta';
+        time.textContent = new Date(entry.created || Date.now()).toLocaleDateString();
+
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'ghost';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => {
+          editingBookId = entry.id;
+          if (dom.bookTitle) dom.bookTitle.value = entry.title || '';
+          if (dom.bookNotes) dom.bookNotes.value = entry.notes || '';
+          const submit = dom.bookForm?.querySelector('button[type="submit"]');
+          if (submit) submit.textContent = 'Update book';
+          if (dom.bookSaved) dom.bookSaved.textContent = 'Editing';
+          dom.bookNotes?.focus();
+        });
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'ghost';
+        remove.textContent = 'Delete';
+        remove.addEventListener('click', async () => {
+          state.books = state.books.filter((b) => b.id !== entry.id);
+          if (editingBookId === entry.id) {
+            editingBookId = null;
+            if (dom.bookTitle) dom.bookTitle.value = '';
+            if (dom.bookNotes) dom.bookNotes.value = '';
+            const submit = dom.bookForm?.querySelector('button[type="submit"]');
+            if (submit) submit.textContent = 'Save book';
+          }
+          saveState();
+          if (currentUser?.uid) {
+            try {
+              await removeBookRemote(currentUser.uid, entry.id);
+            } catch (e) {
+              console.warn('Failed to remove book from Firestore', e);
+            }
+          }
+          renderBooks();
+        });
+
+        item.append(content, time, edit, remove);
+        dom.bookList.append(item);
       });
   };
 
@@ -1861,6 +1943,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
     renderJournal();
     renderDreams();
     renderIdeas();
+    renderBooks();
     renderQuitList();
     renderGoals();
     renderInsights();
@@ -1935,7 +2018,7 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
 
   if (dom.reset) {
     dom.reset.addEventListener('click', async () => {
-      if (!confirm('This clears all saved habits, tasks, journals, dreams, and goals. Continue?')) return;
+      if (!confirm('This clears all saved habits, tasks, journals, dreams, ideas, books, and goals. Continue?')) return;
       const originalLabel = dom.reset.textContent;
       dom.reset.disabled = true;
       dom.reset.textContent = 'Resetting...';
@@ -2406,6 +2489,50 @@ import { dayKey, parseDateValue, randomId, startOfDayIso, startOfMonthKey, today
       }
       renderIdeas();
       renderHistory();
+    });
+  }
+
+  if (dom.bookForm) {
+    dom.bookForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const title = dom.bookTitle?.value.trim() || '';
+      if (!title) return;
+      const notes = dom.bookNotes?.value.trim() || '';
+      const now = Date.now();
+      const wasEditing = Boolean(editingBookId);
+      let entry = null;
+      if (editingBookId) {
+        const existing = state.books.find((item) => item.id === editingBookId);
+        if (existing) {
+          existing.title = title;
+          existing.notes = notes;
+          existing.updated = now;
+          entry = existing;
+        }
+      } else {
+        entry = { id: randomId(), title, notes, created: now, updated: now };
+        state.books.push(entry);
+      }
+      if (!entry) return;
+      editingBookId = null;
+      if (dom.bookTitle) dom.bookTitle.value = '';
+      if (dom.bookNotes) dom.bookNotes.value = '';
+      const submit = dom.bookForm?.querySelector('button[type="submit"]');
+      if (submit) submit.textContent = 'Save book';
+      if (dom.bookSaved) dom.bookSaved.textContent = 'Saved';
+      saveState();
+      if (currentUser?.uid) {
+        try {
+          if (wasEditing) {
+            await updateBookRemote(currentUser.uid, entry.id, entry);
+          } else {
+            await addBookRemote(currentUser.uid, entry);
+          }
+        } catch (e) {
+          console.warn('Failed to save books to Firestore', e);
+        }
+      }
+      renderBooks();
     });
   }
 

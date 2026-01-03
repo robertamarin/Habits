@@ -43,7 +43,8 @@ export async function resetUserData(uid) {
     clearCollection(uid, 'habits'),
     clearCollection(uid, 'days'),
     clearCollection(uid, 'goals'),
-    clearCollection(uid, 'quits')
+    clearCollection(uid, 'quits'),
+    clearCollection(uid, 'books')
   ]);
 }
 
@@ -201,6 +202,32 @@ export async function removeQuit(uid, quitId) {
 }
 
 // -----------------------------------------------------------------------------
+// Books (annual reading log)
+// -----------------------------------------------------------------------------
+
+export async function loadBooks(uid) {
+  const snap = await getDocs(subcol(uid, 'books'));
+  const list = [];
+  snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+  return list;
+}
+
+export async function addBook(uid, book) {
+  const ref = doc(db, 'users', uid, 'books', book.id);
+  await setDoc(ref, book, { merge: true });
+}
+
+export async function updateBook(uid, bookId, patch) {
+  const ref = doc(db, 'users', uid, 'books', bookId);
+  await setDoc(ref, patch, { merge: true });
+}
+
+export async function removeBook(uid, bookId) {
+  const ref = doc(db, 'users', uid, 'books', bookId);
+  await deleteDoc(ref);
+}
+
+// -----------------------------------------------------------------------------
 // Migration from localStorage (habitFreshV1 + legacy keys)
 // -----------------------------------------------------------------------------
 
@@ -216,6 +243,7 @@ export async function migrateLocal(uid) {
   const extraDays = {};
   const goals = [];
   const quits = [];
+  const books = [];
 
   if (storedState) {
     // habits
@@ -235,6 +263,7 @@ export async function migrateLocal(uid) {
     // goals/quits (if present)
     (storedState.goals || []).forEach((g) => goals.push(g));
     (storedState.quits || []).forEach((q) => quits.push(q));
+    (storedState.books || []).forEach((b) => books.push(b));
 
     // day payloads
     Object.entries(storedState.days || {}).forEach(([dateKeyValue, payload]) => {
@@ -299,6 +328,19 @@ export async function migrateLocal(uid) {
     if (!q) continue;
     const id = q.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     await addQuit(uid, { id, name: q.name || q.text || '', date: q.date || dayKey(new Date()), created: q.created || Date.now() });
+  }
+
+  // Write books
+  for (const b of books) {
+    if (!b) continue;
+    const id = b.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    await addBook(uid, {
+      id,
+      title: b.title || b.name || '',
+      notes: b.notes || b.text || '',
+      created: b.created || Date.now(),
+      updated: b.updated || Date.now()
+    });
   }
 
   // cleanup

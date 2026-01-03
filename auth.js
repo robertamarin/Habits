@@ -12,6 +12,7 @@ import {
   loadHabits,
   loadGoals,
   loadQuits,
+  loadBooks,
   migrateLocal,
   loadDaysRange
 } from './firestore.js';
@@ -47,10 +48,11 @@ export function observeAuthState(onSignIn, onSignOut) {
     try {
       await migrateLocal(user.uid);
 
-      const [habits, goals, quits, todayData] = await Promise.all([
+      const [habits, goals, quits, books, todayData] = await Promise.all([
         loadHabits(user.uid),
         loadGoals(user.uid),
         loadQuits(user.uid),
+        loadBooks(user.uid),
         loadDay(user.uid) // today by default
       ]);
 
@@ -59,10 +61,13 @@ export function observeAuthState(onSignIn, onSignOut) {
       const year = new Date().getFullYear();
       const yearDays = await loadDaysRange(user.uid, `${year}-01-01`, `${year}-12-31`);
 
-      onSignIn?.(user, { habits, goals, quits, day: todayData, yearDays });
+      onSignIn?.(user, { habits, goals, quits, books, day: todayData, yearDays });
     } catch (e) {
       console.warn('Auth succeeded, but Firestore load failed. Check Firestore rules/authorized domains.', e);
-      onSignIn?.(user, { habits: [], goals: [], quits: [], day: { completions: {}, mood: null, tasks: [], journal: [], dreams: [], ideas: [] }, yearDays: {} });
+      onSignIn?.(
+        user,
+        { habits: [], goals: [], quits: [], books: [], day: { completions: {}, mood: null, tasks: [], journal: [], dreams: [], ideas: [] }, yearDays: {} }
+      );
     }
   });
 }
